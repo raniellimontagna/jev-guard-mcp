@@ -77,7 +77,7 @@ test("rejects localhost, credentials, HTTP, query candidates, cross-origin links
 - Consumes: `candidateUrl()` from Task 1.
 - Produces: `redactText(value: string): string`, `buildSnapshot(raw: RawPageSnapshot): PageSnapshot`.
 
-- [ ] **Step 1: Write failing tests proving e-mails, phone numbers, bearer-like tokens, repeated whitespace and URL queries are removed**
+- [x] **Step 1: Write failing tests proving e-mails, phone numbers, bearer-like tokens, repeated whitespace and URL queries are removed**
 
 ```ts
 test("redacts sensitive text", () => {
@@ -88,11 +88,11 @@ test("redacts sensitive text", () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused redaction test and verify the missing-module failure**
-- [ ] **Step 3: Implement minimal redaction and rerun until green**
-- [ ] **Step 4: Write failing snapshot tests that retain at most 80 visible safe anchors, normalize labels, expose only origin/path, and create stable SHA-256 candidate fingerprints**
-- [ ] **Step 5: Implement `buildSnapshot()` as a pure function and verify both test files pass**
-- [ ] **Step 6: Commit with `git commit -m "feat: build bounded redacted page snapshots"`**
+- [x] **Step 2: Run the focused redaction test and verify the missing-module failure**
+- [x] **Step 3: Implement minimal redaction and rerun until green**
+- [x] **Step 4: Write failing snapshot tests that retain at most 80 visible safe anchors, normalize labels, expose only origin/path, and create stable SHA-256 candidate fingerprints**
+- [x] **Step 5: Implement `buildSnapshot()` as a pure function and verify both test files pass**
+- [x] **Step 6: Commit with `git commit -m "feat: build bounded redacted page snapshots"`**
 
 ### Task 3: Jev decision boundary
 
