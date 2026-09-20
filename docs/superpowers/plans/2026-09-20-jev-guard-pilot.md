@@ -148,14 +148,14 @@ test("rejects an answer outside the bounded choice set", async () => {
 - Consumes: `BrowserDriver` and `JevClient`.
 - Produces: `GuardService.preview({url, goal})`, `GuardService.execute(token)`, and `GuardService.cancel(token)`.
 
-- [ ] **Step 1: Write failing tests using in-memory fake browser and Jev adapters for preview-only terminal/low-confidence decisions**
-- [ ] **Step 2: Run the focused tests and verify the missing-service failure**
-- [ ] **Step 3: Implement preview with a maximum of three live sessions, 120-second expiry, and cryptographically random opaque tokens**
-- [ ] **Step 4: Write failing tests proving execution consumes the token before navigation, rejects reuse/expiry, and closes the browser on every terminal path**
-- [ ] **Step 5: Implement single-use execution and cancellation**
-- [ ] **Step 6: Write failing tests proving changed source URL, missing candidate, changed label, changed destination or changed fingerprint are rejected as stale**
-- [ ] **Step 7: Implement exact freshness matching, deterministic `page.goto()`, same-origin postcondition checking, and redacted final output**
-- [ ] **Step 8: Run all guard tests and commit with `git commit -m "feat: enforce preview and single-use navigation"`**
+- [x] **Step 1: Write failing tests using in-memory fake browser and Jev adapters for preview-only terminal/low-confidence decisions**
+- [x] **Step 2: Run the focused tests and verify the missing-service failure**
+- [x] **Step 3: Implement preview with a maximum of three live sessions, 120-second expiry, and cryptographically random opaque tokens**
+- [x] **Step 4: Write failing tests proving execution consumes the token before navigation, rejects reuse/expiry, and closes the browser on every terminal path**
+- [x] **Step 5: Implement single-use execution and cancellation**
+- [x] **Step 6: Write failing tests proving changed source URL, missing candidate, changed label, changed destination or changed fingerprint are rejected as stale**
+- [x] **Step 7: Implement exact freshness matching, deterministic `page.goto()`, same-origin postcondition checking, and redacted final output**
+- [x] **Step 8: Run all guard tests and commit with `git commit -m "feat: enforce preview and single-use navigation"`**
 
 ### Task 6: MCP tools and Keychain launcher
 
