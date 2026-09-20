@@ -171,6 +171,21 @@ test("cancel consumes the token and closes its browser", async () => {
   await assert.rejects(() => guard.cancel(preview.token), /invalid or already consumed/);
 });
 
+test("proactively closes a preview that is never consumed", async () => {
+  const store = new SessionStore({ ttlMs: 10 });
+  const session = new FakeBrowserSession([page]);
+  await store.put({
+    browser: session,
+    snapshot: page,
+    candidate,
+    confidence: 0.94,
+    usage,
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(session.closed, true);
+});
+
 const staleCases: Array<[string, PageSnapshot]> = [
   ["source URL", { ...page, sourceUrl: "https://example.com/other" }],
   ["candidate removal", { ...page, candidates: [] }],

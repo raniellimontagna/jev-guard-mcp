@@ -15,6 +15,7 @@ export interface PendingNavigation {
 interface StoredNavigation extends PendingNavigation {
   token: string;
   expiresAt: number;
+  expiryTimer?: ReturnType<typeof setTimeout>;
 }
 
 interface SessionStoreOptions {
@@ -47,7 +48,12 @@ export class SessionStore {
     let token = this.#tokenFactory();
     while (this.#entries.has(token)) token = this.#tokenFactory();
     const expiresAt = this.#now() + this.#ttlMs;
-    this.#entries.set(token, { ...value, token, expiresAt });
+    const entry: StoredNavigation = { ...value, token, expiresAt };
+    entry.expiryTimer = setTimeout(() => {
+      void this.#expire(token).catch(() => undefined);
+    }, this.#ttlMs);
+    entry.expiryTimer.unref();
+    this.#entries.set(token, entry);
     return { token, expiresAt };
   }
 
@@ -56,6 +62,7 @@ export class SessionStore {
     if (!entry) throw new Error("Preview token is invalid or already consumed");
 
     this.#entries.delete(token);
+    if (entry.expiryTimer) clearTimeout(entry.expiryTimer);
     if (entry.expiresAt <= this.#now()) {
       await entry.browser.close();
       throw new Error("Preview token expired");
@@ -66,13 +73,23 @@ export class SessionStore {
   async closeAll(): Promise<void> {
     const entries = [...this.#entries.values()];
     this.#entries.clear();
+    for (const entry of entries) if (entry.expiryTimer) clearTimeout(entry.expiryTimer);
     await Promise.all(entries.map(({ browser }) => browser.close()));
+  }
+
+  async #expire(token: string): Promise<void> {
+    const entry = this.#entries.get(token);
+    if (!entry) return;
+    this.#entries.delete(token);
+    if (entry.expiryTimer) clearTimeout(entry.expiryTimer);
+    await entry.browser.close();
   }
 
   async #pruneExpired(): Promise<void> {
     const now = this.#now();
     const expired = [...this.#entries.values()].filter(({ expiresAt }) => expiresAt <= now);
     for (const entry of expired) this.#entries.delete(entry.token);
+    for (const entry of expired) if (entry.expiryTimer) clearTimeout(entry.expiryTimer);
     await Promise.all(expired.map(({ browser }) => browser.close()));
   }
 }
