@@ -218,10 +218,116 @@ test("shutdown prevents an in-flight preview from retaining a browser", async ()
   const preview = guard.preview({ url: page.sourceUrl, goal: "Read docs" });
   await started;
   await guard.close();
+  assert.equal(session.closed, true, "close must close the browser before the model responds");
   releaseDecision?.(readyDecision());
 
   await assert.rejects(() => preview, /closed/);
   assert.equal(session.closed, true);
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((release) => { resolve = release; });
+  return { promise, resolve };
+}
+
+test("reserves configured capacity before opening browsers or calling Jev", async () => {
+  const decision = deferred<Decision>();
+  const started = deferred<void>();
+  let opens = 0;
+  let choices = 0;
+  const guard = new GuardService({ async open() { opens++; return new FakeBrowserSession([page]); } }, {
+    async choose() { if (++choices === 3) started.resolve(); return decision.promise; },
+  }, new SessionStore({ maxSessions: 3 }));
+  const previews = Array.from({ length: 3 }, () => guard.preview({ url: page.sourceUrl, goal: "Read docs" }));
+  await started.promise;
+  const fourth = guard.preview({ url: page.sourceUrl, goal: "Read docs" });
+  decision.resolve({ status: "done", confidence: 1, choice: "done", usage });
+  await assert.rejects(fourth, /Too many/);
+  await Promise.all(previews);
+  assert.equal(opens, 3);
+  assert.equal(choices, 3);
+  await guard.preview({ url: page.sourceUrl, goal: "Read docs" });
+  assert.equal(opens, 4, "terminal decisions release capacity");
+  await guard.close();
+});
+
+test("shutdown closes a consumed execute while navigation is still pending", async () => {
+  const navigation = deferred<PageSnapshot>();
+  const started = deferred<void>();
+  const session = new FakeBrowserSession([page]);
+  session.navigate = async () => { started.resolve(); return navigation.promise; };
+  const guard = service(session);
+  const preview = await guard.preview({ url: page.sourceUrl, goal: "Read docs" });
+  assert.equal(preview.status, "ready");
+  if (preview.status !== "ready") return;
+  const execution = guard.execute(preview.token);
+  await started.promise;
+  await guard.close();
+  assert.equal(session.closed, true);
+  navigation.resolve(destination);
+  await assert.rejects(execution, /closed/);
+  await assert.rejects(guard.preview({ url: page.sourceUrl, goal: "Read docs" }), /closed/);
+  await assert.rejects(guard.execute(preview.token), /closed/);
+});
+
+test("shutdown waits for an opening browser and closes it without calling Jev", async () => {
+  const opening = deferred<BrowserSession>();
+  const started = deferred<void>();
+  const session = new FakeBrowserSession([page]);
+  let choices = 0;
+  const guard = new GuardService({ async open() { started.resolve(); return opening.promise; } }, {
+    async choose() { choices++; return readyDecision(); },
+  });
+  const preview = guard.preview({ url: page.sourceUrl, goal: "Read docs" });
+  const rejected = assert.rejects(preview, /closed/);
+  await started.promise;
+  const closing = guard.close();
+  opening.resolve(session);
+  await closing;
+  assert.equal(session.closed, true);
+  await rejected;
+  assert.equal(choices, 0);
+});
+
+test("keeps consumed executions within capacity until their browsers close", async () => {
+  const navigation = deferred<PageSnapshot>();
+  const started = deferred<void>();
+  const session = new FakeBrowserSession([page]);
+  session.navigate = async () => { started.resolve(); return navigation.promise; };
+  const next = new FakeBrowserSession([page]);
+  const guard = new GuardService(new FakeDriver([session, next]), new FakeJev(readyDecision()), new SessionStore({ maxSessions: 1 }));
+  const preview = await guard.preview({ url: page.sourceUrl, goal: "Read docs" });
+  assert.equal(preview.status, "ready");
+  if (preview.status !== "ready") return;
+  const execution = guard.execute(preview.token);
+  await started.promise;
+  await assert.rejects(guard.preview({ url: page.sourceUrl, goal: "Read docs" }), /Too many/);
+  navigation.resolve(destination);
+  await execution;
+  assert.equal((await guard.preview({ url: page.sourceUrl, goal: "Read docs" })).status, "ready");
+  await guard.close();
+});
+
+test("releases reservations after browser and model errors", async () => {
+  let opens = 0;
+  let choices = 0;
+  const sessions: FakeBrowserSession[] = [];
+  const guard = new GuardService({ async open() {
+    if (++opens === 1) throw new Error("open failed");
+    const session = new FakeBrowserSession([page]);
+    sessions.push(session);
+    return session;
+  } }, { async choose() {
+    if (++choices === 1) throw new Error("model failed");
+    return readyDecision();
+  } }, new SessionStore({ maxSessions: 1 }));
+  await assert.rejects(guard.preview({ url: page.sourceUrl, goal: "Read docs" }), /open failed/);
+  await assert.rejects(guard.preview({ url: page.sourceUrl, goal: "Read docs" }), /model failed/);
+  assert.equal(sessions[0]?.closed, true);
+  assert.equal((await guard.preview({ url: page.sourceUrl, goal: "Read docs" })).status, "ready");
+  await guard.close();
+  assert.equal(sessions[1]?.closed, true);
 });
 
 const staleCases: Array<[string, PageSnapshot]> = [

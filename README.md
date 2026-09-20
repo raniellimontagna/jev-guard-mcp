@@ -11,9 +11,9 @@
 
 Jev Guard MCP is an experimental, browser-only MCP server that lets Jev choose among code-owned navigation options without handing browser control to the model.
 
-Codex provides intent. Playwright observes a fresh public browser context. The policy engine reduces the page to safe links. Jev selects one bounded ID. A human approves the exact destination before a single navigation can execute.
+Codex provides intent. Playwright observes a fresh public browser context. The policy engine reduces the page to safe links. Jev selects one bounded ID. The trusted MCP client shows the proposed action and obtains human approval before calling execute.
 
-> **Resumo em português:** o Jev Guard conecta Codex, Jev/TypeSafe e Playwright dentro de um limite explícito. O modelo escolhe somente links produzidos pelo código, e nenhuma navegação acontece sem aprovação humana da origem, do rótulo e do destino.
+> **Resumo em português:** o Jev Guard conecta Codex, Jev/TypeSafe e Playwright dentro de um limite explícito. O modelo escolhe somente links produzidos pelo código. O cliente MCP confiável deve mostrar origem, rótulo e destino e obter aprovação humana explícita antes de executar; o servidor não comprova essa aprovação.
 
 ## Why this exists
 
@@ -43,7 +43,9 @@ The model never emits selectors, coordinates, JavaScript or arbitrary URLs. The 
 
 ## Approval flow
 
-`jev_guard_preview` returns a proposal without navigating:
+A trusted MCP client is responsible for showing the source, label and destination and obtaining explicit human approval before calling `jev_guard_execute`. Possession of a preview token is the technical authorization to execute; the server cannot independently attest human approval. Keep tokens private to the trusted client. The workflow is preview → human approval → execute.
+
+`jev_guard_preview` opens the source page and returns a proposal without navigating to the proposed destination:
 
 ```json
 {
@@ -79,9 +81,12 @@ Additional controls include:
 - JavaScript and WebSockets disabled in the page context;
 - localhost, private networks and private DNS resolutions blocked;
 - exact main-document URL enforced before network access and after navigation;
+- every HTTPS request fetched with redirects disabled; all 3xx responses and subframe documents blocked;
 - page text and goals redacted before TypeSafe calls;
 - minimum effective confidence of `0.80`;
 - tokens stored only in memory, single-use and valid for 120 seconds;
+- capacity reserved before browser/model work, including consumed executions; shutdown closes active browsers;
+- bounded public MCP error codes and messages, with no dependency call logs;
 - TypeSafe model pinned to `jev-1.13.0`, with response validation and no automatic retries.
 
 Read the full [architecture](docs/architecture.md) and [threat model](docs/threat-model.md), including the documented DNS-rebinding, adversarial-content and GET-side-effect risks.
@@ -118,7 +123,7 @@ Registering the server is deliberately separate from cloning it. Review the secu
 
 | Tool | Effect |
 |---|---|
-| `jev_guard_preview` | Observes a public page and returns one bounded proposal plus a short-lived token. It does not navigate. |
+| `jev_guard_preview` | Opens a public source page and returns one bounded proposal plus a short-lived token. It does not navigate to the proposal. |
 | `jev_guard_execute` | Consumes a fresh token and performs exactly one approved navigation. |
 | `jev_guard_cancel` | Consumes a pending token and closes its isolated browser without navigating. |
 

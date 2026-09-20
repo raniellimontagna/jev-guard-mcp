@@ -24,9 +24,13 @@ Não são enviados screenshots, HTML, cookies, local storage, seletores, coorden
 
 ## Preview e execução
 
+The trusted MCP client is responsible for showing source, label and destination and obtaining explicit human approval before execute. Possession of a preview token is technical authorization; the server cannot independently attest human approval. O fluxo permanece preview → aprovação humana → execute, e o cliente deve manter o token privado.
+
 A prévia mantém o browser aberto por até 120 segundos e armazena em memória o snapshot exato, candidato, confiança e token aleatório. Na execução, o token é removido antes de qualquer efeito. O sistema reextrai a página e compara URL de origem, ID, rótulo, destino e fingerprint. Qualquer diferença fecha o browser e falha como estado stale.
 
-O executor navega para a URL aprovada usando `page.goto()`. Ele não dispara o click handler fornecido pela página. A rota principal só chega à rede quando coincide exatamente com a URL aprovada; redirects, query strings e outros caminhos são bloqueados antes do request e ainda há uma pós-condição sobre a URL final.
+O executor navega para a URL aprovada usando `page.goto()`. Ele não dispara o click handler fornecido pela página. A rota principal só chega à rede quando coincide exatamente com a URL aprovada. Cada request HTTPS valida o hostname e usa `route.fetch({ maxRedirects: 0 })`; respostas 3xx são abortadas e somente respostas sem redirect chegam ao browser por `route.fulfill`. Isso também bloqueia redirects de subrecursos. Documentos de subframes são abortados antes de qualquer acesso à rede. A URL final continua sujeita à pós-condição exata. A URL inicial pode conter query; candidatos de navegação não podem.
+
+O SessionStore reserva capacidade antes de abrir browser ou chamar o modelo. A reserva acompanha abertura, decisão pendente, token armazenado e execução consumida; fechamento, expiração, cancelamento, erro e decisões terminais liberam a reserva. Shutdown rejeita novo trabalho, fecha reservas com browsers ativos e aguarda aberturas já iniciadas para fechá-las, sem depender de uma resposta do modelo. Erros MCP usam uma allowlist de códigos e mensagens constantes e um fallback genérico, sem repassar mensagens de dependências.
 
 ## Dependências e credenciais
 

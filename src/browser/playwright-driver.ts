@@ -104,6 +104,11 @@ export async function installNetworkPolicy(
     try {
       const request = route.request();
       const rawUrl = request.url();
+      const documentRequest = request.isNavigationRequest() || request.resourceType() === "document";
+      if (documentRequest && request.frame() !== page.mainFrame()) {
+        await route.abort("blockedbyclient");
+        return;
+      }
       if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:") || rawUrl === "about:blank") {
         await route.continue();
         return;
@@ -114,7 +119,7 @@ export async function installNetworkPolicy(
         await route.abort("blockedbyclient");
         return;
       }
-      if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      if (documentRequest) {
         url.hash = "";
         if (url.origin !== allowedOrigin || !expectedDocumentUrl || url.href !== expectedDocumentUrl) {
           await route.abort("blockedbyclient");
@@ -123,7 +128,18 @@ export async function installNetworkPolicy(
       }
 
       await assertHost(url.hostname);
-      await route.continue();
+      // Browser-followed redirects bypass routing. Fetch exactly one response and
+      // never expose a redirect to the browser, including for public subresources.
+      const response = await route.fetch({ maxRedirects: 0, timeout: NAVIGATION_TIMEOUT_MS });
+      try {
+        if (response.status() >= 300 && response.status() < 400) {
+          await route.abort("blockedbyclient");
+          return;
+        }
+        await route.fulfill({ response });
+      } finally {
+        await response.dispose();
+      }
     } catch {
       await route.abort("blockedbyclient").catch(() => undefined);
     }
@@ -186,12 +202,11 @@ export class PlaywrightBrowserDriver implements BrowserDriver {
       headless: true,
       env: browserEnvironment(),
     });
-    const context = await browser.newContext(ISOLATED_CONTEXT_OPTIONS);
-    const page = await context.newPage();
-    page.on("popup", (popup) => void popup.close());
-    page.on("download", (download) => void download.cancel());
-
     try {
+      const context = await browser.newContext(ISOLATED_CONTEXT_OPTIONS);
+      const page = await context.newPage();
+      page.on("popup", (popup) => void popup.close());
+      page.on("download", (download) => void download.cancel());
       await blockWebSockets(context);
       const networkPolicy = await installNetworkPolicy(context, page, url.origin);
       networkPolicy.expectDocument(url.href);
@@ -200,7 +215,6 @@ export class PlaywrightBrowserDriver implements BrowserDriver {
       if (finalUrl.origin !== url.origin) throw new Error("Initial navigation left the allowed origin");
       return new PlaywrightSession(browser, context, page, url.origin, networkPolicy);
     } catch (error) {
-      await context.close().catch(() => undefined);
       await browser.close().catch(() => undefined);
       throw error;
     }

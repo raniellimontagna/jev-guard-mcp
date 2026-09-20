@@ -1,4 +1,4 @@
-import type { BrowserDriver } from "../browser/browser-driver.js";
+import type { BrowserDriver, BrowserSession } from "../browser/browser-driver.js";
 import type { LinkCandidate, PageSnapshot } from "../contracts.js";
 import type { Decision, DecisionUsage, JevClient } from "../decision/jev-client.js";
 import { validateStartUrl } from "../security/url-policy.js";
@@ -62,6 +62,8 @@ function publicPage(snapshot: PageSnapshot): ExecuteResult["page"] {
 
 export class GuardService {
   #closed = false;
+  #closing: Promise<void> | undefined;
+  readonly #openings = new Set<Promise<BrowserSession>>();
 
   constructor(
     private readonly driver: BrowserDriver,
@@ -75,14 +77,28 @@ export class GuardService {
     const goal = request.goal.trim();
     if (!goal) throw new Error("Goal must not be empty");
 
-    const browser = await this.driver.open(url.href);
+    const reservation = await this.sessions.reserve();
+    let browser: BrowserSession;
+    try {
+      if (this.#closed) throw new Error("Jev Guard is closed");
+      const opening = this.driver.open(url.href).then((session) => reservation.attach(session));
+      this.#openings.add(opening);
+      try { browser = await opening; }
+      finally { this.#openings.delete(opening); }
+      if (this.#closed) throw new Error("Jev Guard is closed");
+    } catch (error) {
+      await reservation.release();
+      throw error;
+    }
     let retained = false;
     try {
       const snapshot = await browser.snapshot();
+      if (this.#closed) throw new Error("Jev Guard is closed");
       const decision = await this.jev.choose(
         { goal, snapshot },
         options.signal ? { signal: options.signal } : undefined,
       );
+      if (this.#closed) throw new Error("Jev Guard is closed");
       if (decision.status !== "ready") return terminal(decision);
 
       const observed = snapshot.candidates.find(({ id }) => id === decision.candidate.id);
@@ -97,7 +113,7 @@ export class GuardService {
         candidate: observed,
         confidence: decision.confidence,
         usage: decision.usage,
-      });
+      }, reservation);
       retained = true;
       return {
         status: "ready",
@@ -121,7 +137,9 @@ export class GuardService {
     if (this.#closed) throw new Error("Jev Guard is closed");
     const pending = await this.sessions.consume(token);
     try {
+      if (this.#closed) throw new Error("Jev Guard is closed");
       const current = await pending.browser.snapshot();
+      if (this.#closed) throw new Error("Jev Guard is closed");
       if (current.sourceUrl !== pending.snapshot.sourceUrl) {
         throw new Error("Preview is stale: source URL changed");
       }
@@ -131,6 +149,7 @@ export class GuardService {
       }
 
       const result = await pending.browser.navigate(candidate.url);
+      if (this.#closed) throw new Error("Jev Guard is closed");
       if (result.sourceUrl !== candidate.url) {
         throw new Error("Navigation postcondition failed: page left the exact approved destination");
       }
@@ -154,7 +173,15 @@ export class GuardService {
   }
 
   async close(): Promise<void> {
+    if (this.#closing) return this.#closing;
     this.#closed = true;
-    await this.sessions.closeAll();
+    this.#closing = Promise.allSettled([
+      this.sessions.closeAll(),
+      ...this.#openings,
+    ]).then((results) => {
+      // Opening failures belong to their callers; cleanup failures remain visible.
+      if (results[0]?.status === "rejected") throw results[0].reason;
+    });
+    return this.#closing;
   }
 }

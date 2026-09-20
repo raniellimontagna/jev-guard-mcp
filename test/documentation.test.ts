@@ -24,6 +24,15 @@ test("README presents the public project without overstating its authority", asy
   assert.doesNotMatch(readme, /não foi publicado|not published/i);
 });
 
+test("public docs assign human approval to the trusted MCP client", async () => {
+  for (const file of ["../README.md", "../docs/architecture.md", "../docs/threat-model.md"]) {
+    const document = await contents(file);
+    assert.match(document, /trusted MCP client/i, file);
+    assert.match(document, /possession of (?:a |the )?preview token/i, file);
+    assert.match(document, /cannot independently attest human approval/i, file);
+  }
+});
+
 test("repository-owned banner is accessible and self-contained", async () => {
   const banner = await contents("../docs/assets/jev-guard-banner.svg");
   assert.match(banner, /<svg[^>]+role="img"/);
@@ -54,7 +63,6 @@ test("threat model records prohibited actions and residual risks", async () => {
 test("public repository includes an MIT license and secret-free pinned CI", async () => {
   const license = await contents("../LICENSE");
   const workflow = await contents("../.github/workflows/ci.yml");
-  const packageJson = JSON.parse(await contents("../package.json")) as { files?: string[] };
 
   assert.match(license, /MIT License/);
   assert.match(license, /Copyright \(c\) 2026 Ranielli Montagna/);
@@ -65,6 +73,17 @@ test("public repository includes an MIT license and secret-free pinned CI", asyn
   assert.match(workflow, /npx playwright install --with-deps chrome/);
   assert.match(workflow, /npm audit --omit=dev/);
   assert.doesNotMatch(workflow, /TYPESAFE_API_KEY|smoke:live/);
-  assert.ok(packageJson.files?.includes("LICENSE"));
-  assert.ok(packageJson.files?.includes("docs/assets/jev-guard-banner.svg"));
+});
+
+test("package files are exactly the ordered public allowlist", async () => {
+  const packageJson = JSON.parse(await contents("../package.json"));
+  assert.deepEqual(packageJson.files, ["dist", "scripts/run-from-keychain.sh", "README.md", "LICENSE", "docs/assets/jev-guard-banner.svg", "docs/architecture.md", "docs/threat-model.md"]);
+});
+
+test("package remains private", async () => {
+  assert.equal(JSON.parse(await contents("../package.json")).private, true);
+});
+
+test("package version remains 0.1.0", async () => {
+  assert.equal(JSON.parse(await contents("../package.json")).version, "0.1.0");
 });

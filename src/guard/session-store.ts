@@ -25,13 +25,20 @@ interface SessionStoreOptions {
   tokenFactory?: () => string;
 }
 
+export interface SessionReservation {
+  attach(browser: BrowserSession): Promise<BrowserSession>;
+  release(): Promise<void>;
+}
+
 export class SessionStore {
   readonly #entries = new Map<string, StoredNavigation>();
+  readonly #reservations = new Set<SessionReservation>();
   readonly #maxSessions: number;
   readonly #ttlMs: number;
   readonly #now: () => number;
   readonly #tokenFactory: () => string;
   #closed = false;
+  #closing: Promise<void> | undefined;
 
   constructor(options: SessionStoreOptions = {}) {
     this.#maxSessions = options.maxSessions ?? 3;
@@ -40,17 +47,49 @@ export class SessionStore {
     this.#tokenFactory = options.tokenFactory ?? (() => randomBytes(32).toString("base64url"));
   }
 
-  async put(value: PendingNavigation): Promise<{ token: string; expiresAt: number }> {
+  async reserve(): Promise<SessionReservation> {
     await this.#pruneExpired();
     if (this.#closed) throw new Error("Session store is closed");
-    if (this.#entries.size >= this.#maxSessions) {
+    if (this.#reservations.size >= this.#maxSessions) {
       throw new Error("Too many pending Jev Guard previews");
     }
+    let browser: BrowserSession | undefined;
+    let closing: Promise<void> | undefined;
+    const reservation: SessionReservation = {
+      attach: async (session) => {
+        if (closing || this.#closed) {
+          await session.close();
+          throw new Error("Session store is closed");
+        }
+        if (browser) throw new Error("Session reservation already attached");
+        browser = session;
+        return {
+          snapshot: () => session.snapshot(),
+          navigate: (url) => session.navigate(url),
+          close: () => reservation.release(),
+        };
+      },
+      release: () => {
+        closing ??= Promise.resolve().then(async () => {
+          try { await browser?.close(); }
+          finally { this.#reservations.delete(reservation); }
+        });
+        return closing;
+      },
+    };
+    this.#reservations.add(reservation);
+    return reservation;
+  }
+
+  async put(value: PendingNavigation, reserved?: SessionReservation): Promise<{ token: string; expiresAt: number }> {
+    const reservation = reserved ?? await this.reserve();
+    if (this.#closed || !this.#reservations.has(reservation)) throw new Error("Session store is closed");
+    const browser = reserved ? value.browser : await reservation.attach(value.browser);
 
     let token = this.#tokenFactory();
     while (this.#entries.has(token)) token = this.#tokenFactory();
     const expiresAt = this.#now() + this.#ttlMs;
-    const entry: StoredNavigation = { ...value, token, expiresAt };
+    const entry: StoredNavigation = { ...value, browser, token, expiresAt };
     entry.expiryTimer = setTimeout(() => {
       void this.#expire(token).catch(() => undefined);
     }, this.#ttlMs);
@@ -74,11 +113,15 @@ export class SessionStore {
   }
 
   async closeAll(): Promise<void> {
+    if (this.#closing) return this.#closing;
     this.#closed = true;
     const entries = [...this.#entries.values()];
     this.#entries.clear();
     for (const entry of entries) if (entry.expiryTimer) clearTimeout(entry.expiryTimer);
-    await Promise.all(entries.map(({ browser }) => browser.close()));
+    this.#closing = Promise.allSettled([...this.#reservations].map((reservation) => reservation.release())).then((results) => {
+      if (results.some((result) => result.status === "rejected")) throw new Error("Browser cleanup failed");
+    });
+    return this.#closing;
   }
 
   async #expire(token: string): Promise<void> {

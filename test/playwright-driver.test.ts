@@ -1,15 +1,72 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createServer } from "node:https";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { chromium } from "playwright";
+import { chromium, type Browser } from "playwright";
 
 import {
   blockWebSockets,
   browserEnvironment,
   installNetworkPolicy,
   ISOLATED_CONTEXT_OPTIONS,
+  PlaywrightBrowserDriver,
   snapshotPage,
 } from "../src/browser/playwright-driver.js";
+
+test("closes a launched browser when context initialization fails", async (context) => {
+  let closed = false;
+  context.mock.method(chromium, "launch", async () => ({
+    async newContext() { throw new Error("context initialization failed"); },
+    async close() { closed = true; },
+  }) as unknown as Browser);
+  await assert.rejects(new PlaywrightBrowserDriver().open("https://1.1.1.1/"), /context initialization failed/);
+  assert.equal(closed, true);
+});
+
+test("never follows actual HTTPS 301/302/303/307/308 subresource responses", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "jev-redirect-test-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", join(directory, "key.pem"), "-out", join(directory, "cert.pem"), "-days", "1", "-subj", "/CN=localhost"], { stdio: "ignore" });
+  const requests: string[] = [];
+  const server = createServer({ key: await readFile(join(directory, "key.pem")), cert: await readFile(join(directory, "cert.pem")) }, (request, response) => {
+    requests.push(request.url ?? "");
+    if (request.url?.startsWith("/redirect/")) response.writeHead(Number(request.url.split("/")[2]), { location: "/delete?private=SYNTHETIC_SECRET" });
+    else response.writeHead(200, { "content-type": "image/png" });
+    response.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  context.after(() => browser.close());
+  const browserContext = await browser.newContext({ ...ISOLATED_CONTEXT_OPTIONS, ignoreHTTPSErrors: true });
+  const page = await browserContext.newPage();
+  await installNetworkPolicy(browserContext, page, "https://example.com", async () => undefined);
+  for (const status of [301, 302, 303, 307, 308]) {
+    await page.setContent(`<img src="https://127.0.0.1:${address.port}/redirect/${status}">`);
+  }
+  assert.deepEqual(requests, [301, 302, 303, 307, 308].map((status) => `/redirect/${status}`));
+});
+
+test("aborts risky cross-origin iframe documents before hostname checks or network", async (context) => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  context.after(() => browser.close());
+  const browserContext = await browser.newContext(ISOLATED_CONTEXT_OPTIONS);
+  const page = await browserContext.newPage();
+  const checked: string[] = [];
+  const failures: string[] = [];
+  page.on("requestfailed", (request) => failures.push(request.url()));
+  await installNetworkPolicy(browserContext, page, "https://example.com", async (host) => { checked.push(host); throw new Error("fixture network disabled"); });
+  const target = "https://other.example/delete?private=SYNTHETIC_SECRET";
+  await page.setContent(`<iframe src="${target}"></iframe>`);
+  assert.deepEqual(checked, []);
+  assert.deepEqual(failures, [target]);
+});
 
 test("passes only a minimal non-secret environment to Chrome", () => {
   assert.deepEqual(
