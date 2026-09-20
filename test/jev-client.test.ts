@@ -134,6 +134,25 @@ test("rejects malformed confidence and probabilities", async () => {
   );
 });
 
+test("rejects an unpinned response model and malformed usage", async () => {
+  await assert.rejects(
+    () =>
+      clientWith({ ...response("link_0", 0.9), model: "jev-latest" }).choose({
+        goal: "Read docs",
+        snapshot,
+      }),
+    /unexpected model/,
+  );
+  await assert.rejects(
+    () =>
+      clientWith({
+        ...response("link_0", 0.9),
+        usage: { input_tokens: -1, output_tokens: Number.NaN },
+      }).choose({ goal: "Read docs", snapshot }),
+    /invalid usage/,
+  );
+});
+
 test("rejects probability keys outside the offered set", async () => {
   await assert.rejects(
     () =>

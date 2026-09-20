@@ -31,6 +31,7 @@ export class SessionStore {
   readonly #ttlMs: number;
   readonly #now: () => number;
   readonly #tokenFactory: () => string;
+  #closed = false;
 
   constructor(options: SessionStoreOptions = {}) {
     this.#maxSessions = options.maxSessions ?? 3;
@@ -41,6 +42,7 @@ export class SessionStore {
 
   async put(value: PendingNavigation): Promise<{ token: string; expiresAt: number }> {
     await this.#pruneExpired();
+    if (this.#closed) throw new Error("Session store is closed");
     if (this.#entries.size >= this.#maxSessions) {
       throw new Error("Too many pending Jev Guard previews");
     }
@@ -58,6 +60,7 @@ export class SessionStore {
   }
 
   async consume(token: string): Promise<StoredNavigation> {
+    if (this.#closed) throw new Error("Session store is closed");
     const entry = this.#entries.get(token);
     if (!entry) throw new Error("Preview token is invalid or already consumed");
 
@@ -71,6 +74,7 @@ export class SessionStore {
   }
 
   async closeAll(): Promise<void> {
+    this.#closed = true;
     const entries = [...this.#entries.values()];
     this.#entries.clear();
     for (const entry of entries) if (entry.expiryTimer) clearTimeout(entry.expiryTimer);

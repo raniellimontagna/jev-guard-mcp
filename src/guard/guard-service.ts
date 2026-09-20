@@ -61,6 +61,8 @@ function publicPage(snapshot: PageSnapshot): ExecuteResult["page"] {
 }
 
 export class GuardService {
+  #closed = false;
+
   constructor(
     private readonly driver: BrowserDriver,
     private readonly jev: JevClient,
@@ -68,6 +70,7 @@ export class GuardService {
   ) {}
 
   async preview(request: PreviewRequest, options: { signal?: AbortSignal } = {}): Promise<PreviewResult> {
+    if (this.#closed) throw new Error("Jev Guard is closed");
     const url = validateStartUrl(request.url);
     const goal = request.goal.trim();
     if (!goal) throw new Error("Goal must not be empty");
@@ -86,6 +89,7 @@ export class GuardService {
       if (!observed || !isSameCandidate(observed, decision.candidate)) {
         throw new Error("Jev selected a candidate outside the observed snapshot");
       }
+      if (this.#closed) throw new Error("Jev Guard is closed");
 
       const stored = await this.sessions.put({
         browser,
@@ -114,6 +118,7 @@ export class GuardService {
   }
 
   async execute(token: string): Promise<ExecuteResult> {
+    if (this.#closed) throw new Error("Jev Guard is closed");
     const pending = await this.sessions.consume(token);
     try {
       const current = await pending.browser.snapshot();
@@ -142,12 +147,14 @@ export class GuardService {
   }
 
   async cancel(token: string): Promise<{ status: "cancelled" }> {
+    if (this.#closed) throw new Error("Jev Guard is closed");
     const pending = await this.sessions.consume(token);
     await pending.browser.close();
     return { status: "cancelled" };
   }
 
   async close(): Promise<void> {
+    this.#closed = true;
     await this.sessions.closeAll();
   }
 }

@@ -198,6 +198,32 @@ test("proactively closes a preview that is never consumed", async () => {
   assert.equal(session.closed, true);
 });
 
+test("shutdown prevents an in-flight preview from retaining a browser", async () => {
+  let releaseDecision: ((decision: Decision) => void) | undefined;
+  let signalStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    signalStarted = resolve;
+  });
+  const decision = new Promise<Decision>((resolve) => {
+    releaseDecision = resolve;
+  });
+  const jev: JevClient = {
+    async choose() {
+      signalStarted?.();
+      return decision;
+    },
+  };
+  const session = new FakeBrowserSession([page]);
+  const guard = new GuardService(new FakeDriver([session]), jev, new SessionStore());
+  const preview = guard.preview({ url: page.sourceUrl, goal: "Read docs" });
+  await started;
+  await guard.close();
+  releaseDecision?.(readyDecision());
+
+  await assert.rejects(() => preview, /closed/);
+  assert.equal(session.closed, true);
+});
+
 const staleCases: Array<[string, PageSnapshot]> = [
   ["source URL", { ...page, sourceUrl: "https://example.com/other" }],
   ["candidate removal", { ...page, candidates: [] }],

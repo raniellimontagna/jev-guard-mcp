@@ -135,6 +135,13 @@ export class TypeSafeJevClient implements JevClient {
 
     this.metrics.attempts += 1;
     const response = await this.transport(request, options.signal ? { signal: options.signal } : {});
+    if (response.model !== JEV_MODEL) {
+      throw new Error(`Jev returned unexpected model: ${response.model}`);
+    }
+    const usageValues = [response.usage.input_tokens, response.usage.output_tokens];
+    if (usageValues.some((value) => !Number.isSafeInteger(value) || value < 0)) {
+      throw new Error("Jev returned invalid usage");
+    }
     const answer = response.answers.next;
     validateAnswer(answer, new Set(Object.keys(criteria)));
 

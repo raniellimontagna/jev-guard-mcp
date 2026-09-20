@@ -26,8 +26,8 @@ Não são enviados screenshots, HTML, cookies, local storage, seletores, coorden
 
 A prévia mantém o browser aberto por até 120 segundos e armazena em memória o snapshot exato, candidato, confiança e token aleatório. Na execução, o token é removido antes de qualquer efeito. O sistema reextrai a página e compara URL de origem, ID, rótulo, destino e fingerprint. Qualquer diferença fecha o browser e falha como estado stale.
 
-O executor navega para a URL aprovada usando `page.goto()`. Ele não dispara o click handler fornecido pela página e rejeita mudança de origem.
+O executor navega para a URL aprovada usando `page.goto()`. Ele não dispara o click handler fornecido pela página. A rota principal só chega à rede quando coincide exatamente com a URL aprovada; redirects, query strings e outros caminhos são bloqueados antes do request e ainda há uma pós-condição sobre a URL final.
 
 ## Dependências e credenciais
 
-As dependências diretas e o modelo `jev-1.13.0` são fixados. O SDK TypeSafe usa base URL constante, zero retries automáticos, timeout de 10 segundos e logging desligado. A chave vem somente do ambiente; `scripts/run-from-keychain.sh` pode carregá-la do Keychain sem imprimi-la.
+As dependências diretas e o modelo `jev-1.13.0` são fixados. O SDK TypeSafe usa base URL constante, zero retries automáticos, timeout de 10 segundos e logging desligado. O cliente rejeita respostas que aleguem outro modelo ou tragam métricas de uso inválidas. A chave vem somente do ambiente; `scripts/run-from-keychain.sh` pode carregá-la do Keychain sem imprimi-la.

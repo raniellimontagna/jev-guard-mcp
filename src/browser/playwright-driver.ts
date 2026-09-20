@@ -30,13 +30,31 @@ export async function snapshotPage(page: Page): Promise<PageSnapshot> {
   const raw = await page.evaluate<RawPageSnapshot>(() => {
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]")).map((anchor) => {
       const rect = anchor.getBoundingClientRect();
-      const style = getComputedStyle(anchor);
+      let ancestorsVisible = true;
+      let element: HTMLElement | null = anchor;
+      while (element) {
+        const style = getComputedStyle(element);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.visibility === "collapse" ||
+          Number.parseFloat(style.opacity) <= 0
+        ) {
+          ancestorsVisible = false;
+          break;
+        }
+        element = element.parentElement;
+      }
+      const intersectsViewport =
+        rect.bottom > 0 &&
+        rect.right > 0 &&
+        rect.top < window.innerHeight &&
+        rect.left < window.innerWidth;
       const visible =
+        ancestorsVisible &&
+        intersectsViewport &&
         rect.width > 0 &&
-        rect.height > 0 &&
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        style.opacity !== "0";
+        rect.height > 0;
       return {
         href: anchor.href,
         label: anchor.innerText || anchor.getAttribute("aria-label") || anchor.title || "",
@@ -55,12 +73,23 @@ export async function snapshotPage(page: Page): Promise<PageSnapshot> {
   return buildSnapshot(raw);
 }
 
+export interface NetworkPolicyController {
+  expectDocument(rawUrl: string): void;
+}
+
+function networkDocumentUrl(rawUrl: string): string {
+  const url = validateStartUrl(rawUrl);
+  url.hash = "";
+  return url.href;
+}
+
 export async function installNetworkPolicy(
   context: BrowserContext,
   page: Page,
   allowedOrigin: string,
   assertHost: (hostname: string) => Promise<void> = assertPublicHostname,
-): Promise<void> {
+): Promise<NetworkPolicyController> {
+  let expectedDocumentUrl: string | undefined;
   await context.route("**/*", async (route: Route) => {
     try {
       const request = route.request();
@@ -75,9 +104,12 @@ export async function installNetworkPolicy(
         await route.abort("blockedbyclient");
         return;
       }
-      if (request.isNavigationRequest() && request.frame() === page.mainFrame() && url.origin !== allowedOrigin) {
-        await route.abort("blockedbyclient");
-        return;
+      if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+        url.hash = "";
+        if (url.origin !== allowedOrigin || !expectedDocumentUrl || url.href !== expectedDocumentUrl) {
+          await route.abort("blockedbyclient");
+          return;
+        }
       }
 
       await assertHost(url.hostname);
@@ -86,6 +118,13 @@ export async function installNetworkPolicy(
       await route.abort("blockedbyclient").catch(() => undefined);
     }
   });
+  return {
+    expectDocument(rawUrl) {
+      const url = validateStartUrl(rawUrl);
+      if (url.origin !== allowedOrigin) throw new Error("Cross-origin navigation is blocked");
+      expectedDocumentUrl = networkDocumentUrl(url.href);
+    },
+  };
 }
 
 class PlaywrightSession implements BrowserSession {
@@ -96,6 +135,7 @@ class PlaywrightSession implements BrowserSession {
     private readonly context: BrowserContext,
     private readonly page: Page,
     private readonly allowedOrigin: string,
+    private readonly networkPolicy: NetworkPolicyController,
   ) {}
 
   async snapshot(): Promise<PageSnapshot> {
@@ -111,6 +151,7 @@ class PlaywrightSession implements BrowserSession {
     const approved = candidateUrl(current, url.href, false);
     if (!approved || approved.href !== url.href) throw new Error("Navigation URL is outside the approved policy");
     await assertPublicHostname(url.hostname);
+    this.networkPolicy.expectDocument(url.href);
     await this.page.goto(url.href, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
     const finalUrl = validateStartUrl(this.page.url());
     if (finalUrl.href !== url.href) throw new Error("Navigation left the exact approved destination");
@@ -138,11 +179,12 @@ export class PlaywrightBrowserDriver implements BrowserDriver {
 
     try {
       await blockWebSockets(context);
-      await installNetworkPolicy(context, page, url.origin);
+      const networkPolicy = await installNetworkPolicy(context, page, url.origin);
+      networkPolicy.expectDocument(url.href);
       await page.goto(url.href, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
       const finalUrl = validateStartUrl(page.url());
       if (finalUrl.origin !== url.origin) throw new Error("Initial navigation left the allowed origin");
-      return new PlaywrightSession(browser, context, page, url.origin);
+      return new PlaywrightSession(browser, context, page, url.origin, networkPolicy);
     } catch (error) {
       await context.close().catch(() => undefined);
       await browser.close().catch(() => undefined);

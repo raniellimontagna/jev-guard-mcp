@@ -65,6 +65,25 @@ test("blocks cross-origin main-frame navigation before a network connection", as
   await assert.rejects(() => page.goto("https://other.example/path"), /ERR_(?:FAILED|BLOCKED_BY_CLIENT)/);
 });
 
+test("blocks a same-origin main-frame URL that was not exactly approved", async (context) => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  context.after(() => browser.close());
+  const browserContext = await browser.newContext();
+  const page = await browserContext.newPage();
+  const policy = await installNetworkPolicy(
+    browserContext,
+    page,
+    "https://example.com",
+    async () => undefined,
+  );
+  policy.expectDocument("https://example.com/approved");
+
+  await assert.rejects(
+    () => page.goto("https://example.com/logout?token=secret"),
+    /ERR_(?:FAILED|BLOCKED_BY_CLIENT)/,
+  );
+});
+
 test("extracts only visible safe anchors without form values or raw HTML", async (context) => {
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   context.after(() => browser.close());
@@ -82,6 +101,8 @@ test("extracts only visible safe anchors without form values or raw HTML", async
           <a href="/logout">Logout</a>
           <a href="/file.zip" download>Download</a>
           <a href="/hidden" style="display:none">Hidden</a>
+          <div style="opacity:0"><a href="/ancestor-hidden">Ancestor hidden</a></div>
+          <a href="/offscreen" style="position:absolute;top:5000px">Offscreen</a>
           <input name="account" value="PRIVATE_INPUT_VALUE">
           <script>window.rawSecret = "RAW_HTML_SECRET";</script>
         </main>`,

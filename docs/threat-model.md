@@ -23,9 +23,11 @@ O sistema não digita, não envia formulários, não clica em botões, não exec
 | Página alterada | URL, ID, rótulo, destino e fingerprint revalidados |
 | Double action | token consumido antes da navegação |
 | Click handler hostil | navegação direta com `page.goto()` |
+| Redirect ou GET não aprovado | URL principal exata autorizada na interceptação antes de chegar à rede e verificada novamente depois da navegação |
 | Script ou WebSocket hostil | JavaScript da página desativado e WebSockets bloqueados no contexto |
 | Vazamento ao provedor | redaction e limites; sem screenshots, HTML, inputs ou query strings |
 | Persistência acidental | sessão e token somente em memória; sem logs de conteúdo |
+| Resposta TypeSafe inconsistente | modelo fixado, uso numérico validado e distribuição de probabilidades conferida |
 
 ## Riscos residuais
 
