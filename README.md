@@ -12,6 +12,7 @@ Este piloto **não está registrado globalmente** no Codex e não foi publicado.
 
 - somente páginas públicas `https:`;
 - contexto Chrome novo e sem sessão autenticada;
+- ambiente do processo Chrome limitado a variáveis operacionais não secretas;
 - JavaScript da página e WebSockets desativados;
 - apenas links visíveis, same-origin, sem query string e sem termos de risco;
 - bloqueio de localhost, endereços privados e destinos resolvidos para rede privada;

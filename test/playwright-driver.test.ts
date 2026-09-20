@@ -5,10 +5,24 @@ import { chromium } from "playwright";
 
 import {
   blockWebSockets,
+  browserEnvironment,
   installNetworkPolicy,
   ISOLATED_CONTEXT_OPTIONS,
   snapshotPage,
 } from "../src/browser/playwright-driver.js";
+
+test("passes only a minimal non-secret environment to Chrome", () => {
+  assert.deepEqual(
+    browserEnvironment({
+      HOME: "/tmp/home",
+      PATH: "/usr/bin",
+      LANG: "en_US.UTF-8",
+      TYPESAFE_API_KEY: "secret",
+      OTHER_API_TOKEN: "also-secret",
+    }),
+    { HOME: "/tmp/home", PATH: "/usr/bin", LANG: "en_US.UTF-8" },
+  );
+});
 
 test("disables page JavaScript in the isolated browser context", () => {
   assert.equal(ISOLATED_CONTEXT_OPTIONS.javaScriptEnabled, false);

@@ -4,6 +4,7 @@ const tokenPattern = /\b[A-Za-z0-9_-]{24,}\b/g;
 const absoluteUrlPattern = /https?:\/\/[^\s<>"']+/gi;
 const schemeRelativeUrlPattern = /(?<!:)\/\/[A-Z0-9.-]+(?::\d+)?\/[^\s<>"']+/gi;
 const rootRelativeUrlPattern = /(^|[\s([{"'])(\/(?!\/)[^\s<>"']*\?[^\s<>"']*)/g;
+const remainingQueryPattern = /\?[^\s<>"']+/g;
 
 function publicRelativeUrl(raw: string): string {
   const url = new URL(raw, "https://redaction.invalid");
@@ -39,6 +40,7 @@ export function redactText(value: string, maxLength = 3_000): string {
         return `${prefix}[REDACTED_URL]`;
       }
     })
+    .replace(remainingQueryPattern, "")
     .replace(emailPattern, "[REDACTED_EMAIL]")
     .replace(phonePattern, "[REDACTED_PHONE]")
     .replace(tokenPattern, "[REDACTED_TOKEN]")

@@ -105,27 +105,28 @@ export class TypeSafeJevClient implements JevClient {
       };
     }
 
+    const safeCandidates = input.snapshot.candidates.map((candidate) => ({
+      id: candidate.id,
+      label: redactText(candidate.label, 160),
+      destination: redactText(candidate.publicUrl, 2_000),
+    }));
     const criteria: Record<string, string> = {
       done: "The goal is already satisfied by the current page",
       blocked: "None of the offered safe links advances the goal",
     };
-    for (const candidate of input.snapshot.candidates) {
-      criteria[candidate.id] = `${candidate.label} -> ${candidate.publicUrl}`;
+    for (const candidate of safeCandidates) {
+      criteria[candidate.id] = `${candidate.label} -> ${candidate.destination}`;
     }
 
     const request: TransportRequest = {
       state: {
         goal: redactText(input.goal, 500),
         page: {
-          url: input.snapshot.publicUrl,
-          title: input.snapshot.title,
-          text: input.snapshot.text,
+          url: redactText(input.snapshot.publicUrl, 2_000),
+          title: redactText(input.snapshot.title, 200),
+          text: redactText(input.snapshot.text, 3_000),
         },
-        actions: input.snapshot.candidates.map((candidate) => ({
-          id: candidate.id,
-          label: candidate.label,
-          destination: candidate.publicUrl,
-        })),
+        actions: safeCandidates,
       },
       questions: {
         next: choice("Which single safe navigation best advances the goal?", criteria),

@@ -13,6 +13,16 @@ import type { BrowserDriver, BrowserSession } from "./browser-driver.js";
 import { buildSnapshot } from "./snapshot.js";
 
 const NAVIGATION_TIMEOUT_MS = 15_000;
+const BROWSER_ENV_KEYS = ["HOME", "PATH", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE"] as const;
+
+export function browserEnvironment(source: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const environment: Record<string, string> = {};
+  for (const key of BROWSER_ENV_KEYS) {
+    const value = source[key];
+    if (value !== undefined) environment[key] = value;
+  }
+  return environment;
+}
 
 export const ISOLATED_CONTEXT_OPTIONS = {
   acceptDownloads: false,
@@ -171,7 +181,11 @@ export class PlaywrightBrowserDriver implements BrowserDriver {
     const url = validateStartUrl(rawUrl);
     await assertPublicHostname(url.hostname);
 
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({
+      channel: "chrome",
+      headless: true,
+      env: browserEnvironment(),
+    });
     const context = await browser.newContext(ISOLATED_CONTEXT_OPTIONS);
     const page = await context.newPage();
     page.on("popup", (popup) => void popup.close());

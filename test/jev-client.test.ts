@@ -109,14 +109,31 @@ test("counts an attempt before a failed transport call and forwards cancellation
 });
 
 test("never sends query strings, source URLs or unredacted goal data", async () => {
+  const leakySnapshot: PageSnapshot = {
+    ...snapshot,
+    publicUrl: "https://example.com/start?session=secret",
+    title: "Report report?title=secret",
+    text: "Open report?token=short or //cdn.example?key=short",
+    candidates: [
+      {
+        ...snapshot.candidates[0]!,
+        label: "Documentation?label=secret",
+        publicUrl: "https://example.com/docs?destination=secret",
+      },
+    ],
+  };
   const transport: JevTransport = async (request) => {
     const serialized = JSON.stringify(request);
     assert.doesNotMatch(serialized, /session=secret/);
+    assert.doesNotMatch(serialized, /(?:title|token|key|label|destination|goal)=secret/);
     assert.doesNotMatch(serialized, /me@example\.com/);
     assert.match(serialized, /\[REDACTED_EMAIL\]/);
     return response("link_0", 0.9);
   };
-  await new TypeSafeJevClient(transport).choose({ goal: "Send to me@example.com", snapshot });
+  await new TypeSafeJevClient(transport).choose({
+    goal: "Send to me@example.com and open ?goal=secret",
+    snapshot: leakySnapshot,
+  });
 });
 
 test("rejects malformed confidence and probabilities", async () => {

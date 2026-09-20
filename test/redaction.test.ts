@@ -31,4 +31,8 @@ test("removes query strings from absolute URLs embedded in text", () => {
     redactText("Open /report?token=short and //cdn.example/file?key=short"),
     "Open /report and //cdn.example/file",
   );
+  assert.equal(
+    redactText("Open report?token=short, ?session=secret and //cdn.example?key=short"),
+    "Open report and //cdn.example",
+  );
 });

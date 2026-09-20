@@ -18,6 +18,7 @@ O sistema não digita, não envia formulários, não clica em botões, não exec
 |---|---|
 | SSRF e rede privada | HTTPS obrigatório, bloqueio sintático, resolução DNS pública e verificação de cada request Playwright |
 | Roubo de sessão | contexto novo, sem perfil Chrome, cookies ou storage do usuário |
+| Segredo herdado pelo Chrome | processo filho recebe somente uma allowlist mínima de variáveis operacionais, sem tokens da aplicação |
 | Ação inventada pelo modelo | Jev só pode escolher IDs definidos pelo código |
 | Decisão ambígua | confiança mínima `0.80`; abaixo disso não há token |
 | Página alterada | URL, ID, rótulo, destino e fingerprint revalidados |
