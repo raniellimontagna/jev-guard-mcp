@@ -1,78 +1,161 @@
-# Jev Guard MCP
+<p align="center">
+  <img src="docs/assets/jev-guard-banner.svg" alt="Jev Guard MCP — observe, choose, approve, navigate" width="100%">
+</p>
 
-Piloto **browser-only** que conecta Codex, Jev/TypeSafe e Playwright sem entregar o controle do navegador ao modelo.
+<p align="center">
+  <a href="https://github.com/raniellimontagna/jev-guard-mcp/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/raniellimontagna/jev-guard-mcp/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-35d07f?logo=nodedotjs&logoColor=white">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-35d07f"></a>
+  <img alt="Status: experimental" src="https://img.shields.io/badge/status-experimental-f0b429">
+</p>
 
-O Codex planeja; Jev escolhe uma opção criada pelo código; a policy engine valida; Playwright observa ou executa exatamente uma navegação. O servidor não digita, não envia formulários, não clica em botões, não usa o perfil Chrome pessoal e não faz upload ou download.
+Jev Guard MCP is an experimental, browser-only MCP server that lets Jev choose among code-owned navigation options without handing browser control to the model.
 
-## Estado
+Codex provides intent. Playwright observes a fresh public browser context. The policy engine reduces the page to safe links. Jev selects one bounded ID. A human approves the exact destination before a single navigation can execute.
 
-Este piloto **não está registrado globalmente** no Codex e não foi publicado. Ele vive na branch `codex/jev-guard-pilot` para validação local.
+> **Resumo em português:** o Jev Guard conecta Codex, Jev/TypeSafe e Playwright dentro de um limite explícito. O modelo escolhe somente links produzidos pelo código, e nenhuma navegação acontece sem aprovação humana da origem, do rótulo e do destino.
 
-## Boundary de segurança
+## Why this exists
 
-- somente páginas públicas `https:`;
-- contexto Chrome novo e sem sessão autenticada;
-- ambiente do processo Chrome limitado a variáveis operacionais não secretas;
-- JavaScript da página e WebSockets desativados;
-- apenas links visíveis, same-origin, sem query string e sem termos de risco;
-- bloqueio de localhost, endereços privados e destinos resolvidos para rede privada;
-- no máximo 80 candidatos e 3 prévias pendentes;
-- confiança mínima Jev de `0.80`;
-- token em memória, descartável e válido por 120 segundos;
-- reobservação exata antes de navegar;
-- execução via `page.goto()`, sem event handlers da página;
-- nenhum screenshot, HTML, valor de input, cookie ou local storage é coletado.
+Computer-use agents are powerful precisely where mistakes are expensive: they can inherit sessions, interpret hostile pages and turn ambiguous model output into side effects. Jev Guard explores a narrower architecture:
 
-Os riscos residuais estão em [docs/threat-model.md](docs/threat-model.md).
+- use Jev for fast semantic judgment;
+- keep authority, URL policy and freshness checks in deterministic code;
+- isolate the browser from the user's Chrome profile and environment secrets;
+- make the proposed action inspectable before execution;
+- refuse authentication, forms, downloads and transactional flows.
 
-## Instalação e verificação
+## How it works
 
-Requer Node.js 22+, Google Chrome e uma credencial TypeSafe disponível como `TYPESAFE_API_KEY` ou no macOS Keychain com service `typesafe-api-key`.
+```mermaid
+flowchart TD
+    C[Codex provides URL and goal] --> P[Playwright opens an isolated public page]
+    P --> S[Policy engine builds safe same-origin candidates]
+    S --> J[Jev chooses a code-owned candidate ID]
+    J --> H{Human approves exact action?}
+    H -->|No| X[Cancel token and close browser]
+    H -->|Yes| F[Re-observe and verify freshness]
+    F --> N[Navigate to the exact approved URL]
+    N --> Z[Verify postcondition and close browser]
+```
+
+The model never emits selectors, coordinates, JavaScript or arbitrary URLs. The executor accepts only a fresh, single-use preview token.
+
+## Approval flow
+
+`jev_guard_preview` returns a proposal without navigating:
+
+```json
+{
+  "status": "ready",
+  "sourceUrl": "https://en.wikipedia.org/wiki/Headless_browser",
+  "confidence": 1,
+  "action": {
+    "id": "link_3",
+    "label": "web browser",
+    "destination": "https://en.wikipedia.org/wiki/Web_browser"
+  },
+  "usage": {
+    "attempts": 1,
+    "model": "jev-1.13.0"
+  }
+}
+```
+
+After human approval, `jev_guard_execute` consumes the token before attempting the exact navigation. `jev_guard_cancel` consumes it without navigating.
+
+## Safety boundary
+
+| Allowed | Intentionally unsupported |
+|---|---|
+| Public HTTPS pages | Authenticated accounts and private pages |
+| Visible, same-origin links | Typing, forms, buttons and uploads |
+| Query-free, low-risk GET navigation | Login, OAuth, purchase, deletion or confirmation |
+| Fresh isolated Chrome contexts | Personal Chrome profiles, cookies or local storage |
+| One approved navigation per token | Downloads, native apps and whole-computer control |
+
+Additional controls include:
+
+- JavaScript and WebSockets disabled in the page context;
+- localhost, private networks and private DNS resolutions blocked;
+- exact main-document URL enforced before network access and after navigation;
+- page text and goals redacted before TypeSafe calls;
+- minimum effective confidence of `0.80`;
+- tokens stored only in memory, single-use and valid for 120 seconds;
+- TypeSafe model pinned to `jev-1.13.0`, with response validation and no automatic retries.
+
+Read the full [architecture](docs/architecture.md) and [threat model](docs/threat-model.md), including the documented DNS-rebinding, adversarial-content and GET-side-effect risks.
+
+## Quickstart
+
+Requirements: Node.js 22+, Google Chrome and a TypeSafe API key.
 
 ```bash
-npm install --ignore-scripts
+git clone git@github.com/raniellimontagna/jev-guard-mcp.git
+cd jev-guard-mcp
+npm ci --ignore-scripts
 npm test
 npm run typecheck
 npm run build
 ```
 
-O projeto nunca carrega `.env`. Para iniciar o MCP sem gravar o segredo em configuração:
+The server reads `TYPESAFE_API_KEY` from the process environment. On macOS, `scripts/run-from-keychain.sh` can load it from a Keychain item whose service is `typesafe-api-key`, without placing the value in Git or MCP configuration.
 
 ```bash
 ./scripts/run-from-keychain.sh
 ```
 
-## Ferramentas MCP
-
-1. `jev_guard_preview` abre a página isolada e retorna a ação proposta, confiança e token.
-2. O usuário confere origem, rótulo e destino.
-3. `jev_guard_execute` consome o token e executa uma única navegação, ou `jev_guard_cancel` fecha a sessão.
-
-O `execute` deve ser chamado somente após aprovação explícita da ação exata mostrada pela prévia.
-
-## Smoke test público
-
-A execução padrão apenas cria a prévia e depois cancela o token, fechando o browser:
-
-```bash
-npm run smoke:live
-```
-
-Para executar uma navegação pública única na Wikipedia:
-
-```bash
-npm run smoke:live -- --execute
-```
-
-O relatório omite o token e qualquer segredo.
-
-## Registro futuro no Codex
-
-Depois de uma revisão humana, o bloco candidato é:
+Candidate Codex configuration, after replacing the command with the absolute path of your clone:
 
 ```toml
 [mcp_servers.jev_guard]
-command = "/Users/raniellimontagna/Projetos/pessoal/jev-guard-mcp/scripts/run-from-keychain.sh"
+command = "/absolute/path/to/jev-guard-mcp/scripts/run-from-keychain.sh"
 ```
 
-Esse bloco é apenas documentação; esta implementação não altera `~/.codex/config.toml`.
+Registering the server is deliberately separate from cloning it. Review the security boundary first and restart Codex after changing MCP configuration.
+
+## MCP tools
+
+| Tool | Effect |
+|---|---|
+| `jev_guard_preview` | Observes a public page and returns one bounded proposal plus a short-lived token. It does not navigate. |
+| `jev_guard_execute` | Consumes a fresh token and performs exactly one approved navigation. |
+| `jev_guard_cancel` | Consumes a pending token and closes its isolated browser without navigating. |
+
+## Verification
+
+The repository test suite covers URL policy, DNS/private-network rejection, redaction, candidate extraction, Jev response validation, token lifecycle, stale-page rejection, shutdown and MCP schemas.
+
+A public smoke test is available:
+
+```bash
+npm run smoke:live
+npm run smoke:live -- --execute
+```
+
+The executing form performs one bounded Wikipedia navigation and incurs a TypeSafe call. It never prints the credential or preview token.
+
+Verified public route on 2026-09-20:
+
+```text
+Headless browser → web browser → Web browser
+https://en.wikipedia.org/wiki/Headless_browser
+https://en.wikipedia.org/wiki/Web_browser
+```
+
+## Development
+
+```bash
+npm test
+npm run typecheck
+npm run build
+npm audit --omit=dev
+npm audit signatures
+npm pack --dry-run
+```
+
+Contributions should preserve the code-owned action boundary. Expanding into authenticated pages, typing, forms or transactional actions requires a separate threat model and explicit confirmation design.
+
+## Status and license
+
+Jev Guard MCP is experimental research software. It is not a general-purpose browser agent and should not be used for authenticated, private or high-consequence workflows.

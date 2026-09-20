@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 420">
+  <title>Jev Guard MCP</title>
+  <desc id="desc">A guarded browser decision flow: observe, choose, approve, navigate.</desc>
+  <rect width="1200" height="420" rx="28" fill="#0b1012"/>
+  <path d="M0 318 C220 260 350 390 570 320 S950 230 1200 290 V420 H0Z" fill="#101a1b"/>
+  <circle cx="1050" cy="82" r="118" fill="#142425"/>
+  <circle cx="1050" cy="82" r="68" fill="none" stroke="#35d07f" stroke-width="2" opacity=".35"/>
+  <g fill="none" stroke="#35d07f" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1022 84 l20 20 42-48" stroke-width="10"/>
+    <path d="M975 137 C1006 172 1087 174 1121 133" stroke-width="3" opacity=".55"/>
+  </g>
+  <text x="72" y="105" fill="#35d07f" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="3">BOUNDED BROWSER DECISIONS</text>
+  <text x="68" y="196" fill="#f4f8f6" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="76" font-weight="750" letter-spacing="-3">Jev Guard MCP</text>
+  <text x="72" y="248" fill="#a9b8b3" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="25">The model chooses. Code constrains. Humans approve.</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">
+    <g fill="#d9e4e0">
+      <text x="72" y="344">observe</text>
+      <text x="290" y="344">choose</text>
+      <text x="508" y="344">approve</text>
+      <text x="744" y="344">navigate</text>
+    </g>
+    <g stroke="#35d07f" stroke-width="2" fill="none" opacity=".75">
+      <path d="M157 338 H263"/>
+      <path d="M375 338 H481"/>
+      <path d="M603 338 H717"/>
+    </g>
+    <g fill="#35d07f">
+      <path d="M263 338 l-9-6 v12Z"/>
+      <path d="M481 338 l-9-6 v12Z"/>
+      <path d="M717 338 l-9-6 v12Z"/>
+    </g>
+  </g>
+</svg>
