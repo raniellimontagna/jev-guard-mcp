@@ -33,7 +33,7 @@ function response(choice: string, confidence: number, probabilities?: Record<str
         type: "choice",
         choice,
         confidence,
-        probabilities: probabilities ?? { [choice]: 1 },
+        probabilities: probabilities ?? { done: 0, blocked: 0, link_0: 0, [choice]: 1 },
       },
     },
   };
@@ -116,7 +116,41 @@ test("rejects malformed confidence and probabilities", async () => {
     /invalid confidence/,
   );
   await assert.rejects(
-    () => clientWith(response("link_0", 0.9, { link_0: Number.POSITIVE_INFINITY })).choose({ goal: "Read docs", snapshot }),
+    () =>
+      clientWith(response("link_0", 0.9, { done: 0, blocked: 0, link_0: Number.POSITIVE_INFINITY })).choose({
+        goal: "Read docs",
+        snapshot,
+      }),
     /invalid probabilities/,
+  );
+});
+
+test("rejects probability keys outside the offered set", async () => {
+  await assert.rejects(
+    () =>
+      clientWith(response("link_0", 0.9, { done: 0, blocked: 0, link_0: 0.9, invented: 0.1 })).choose({
+        goal: "Read docs",
+        snapshot,
+      }),
+    /probability keys/,
+  );
+});
+
+test("rejects distributions that do not sum to one or disagree with the selected argmax", async () => {
+  await assert.rejects(
+    () =>
+      clientWith(response("link_0", 0.9, { done: 0.1, blocked: 0.1, link_0: 0.3 })).choose({
+        goal: "Read docs",
+        snapshot,
+      }),
+    /sum to one/,
+  );
+  await assert.rejects(
+    () =>
+      clientWith(response("link_0", 0.9, { done: 0.7, blocked: 0.1, link_0: 0.2 })).choose({
+        goal: "Read docs",
+        snapshot,
+      }),
+    /selected choice is not the probability argmax/,
   );
 });

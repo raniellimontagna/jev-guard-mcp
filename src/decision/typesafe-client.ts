@@ -52,6 +52,21 @@ function validateAnswer(answer: ChoiceAnswer, offered: ReadonlySet<string>): voi
   ) {
     throw new Error("Jev returned invalid probabilities");
   }
+  const probabilityKeys = Object.keys(answer.probabilities);
+  if (
+    probabilityKeys.length !== offered.size ||
+    probabilityKeys.some((key) => !offered.has(key)) ||
+    [...offered].some((key) => !(key in answer.probabilities))
+  ) {
+    throw new Error("Jev returned probability keys outside the offered action set");
+  }
+  const sum = probabilities.reduce((total, value) => total + value, 0);
+  if (Math.abs(sum - 1) > 0.001) throw new Error("Jev probabilities do not sum to one");
+  const selectedProbability = answer.probabilities[answer.choice];
+  const maxProbability = Math.max(...probabilities);
+  if (selectedProbability === undefined || selectedProbability < maxProbability - 1e-9) {
+    throw new Error("Jev selected choice is not the probability argmax");
+  }
 }
 
 export function createTypeSafeTransport(apiKey: string): JevTransport {

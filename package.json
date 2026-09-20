@@ -7,11 +7,19 @@
   "bin": {
     "jev-guard-mcp": "dist/src/index.js"
   },
+  "files": [
+    "dist",
+    "scripts/run-from-keychain.sh",
+    "README.md",
+    "docs/architecture.md",
+    "docs/threat-model.md"
+  ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "smoke:live": "tsx scripts/smoke-live.ts",
     "test": "tsx --test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

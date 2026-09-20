@@ -3,7 +3,38 @@ import test from "node:test";
 
 import { chromium } from "playwright";
 
-import { snapshotPage } from "../src/browser/playwright-driver.js";
+import {
+  blockWebSockets,
+  ISOLATED_CONTEXT_OPTIONS,
+  snapshotPage,
+} from "../src/browser/playwright-driver.js";
+
+test("disables page JavaScript in the isolated browser context", () => {
+  assert.equal(ISOLATED_CONTEXT_OPTIONS.javaScriptEnabled, false);
+  assert.equal(ISOLATED_CONTEXT_OPTIONS.acceptDownloads, false);
+  assert.equal(ISOLATED_CONTEXT_OPTIONS.serviceWorkers, "block");
+});
+
+test("blocks page WebSockets without connecting to the remote server", async (context) => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  context.after(() => browser.close());
+  const browserContext = await browser.newContext();
+  await blockWebSockets(browserContext);
+  const page = await browserContext.newPage();
+
+  const outcome = await page.evaluate(
+    () =>
+      new Promise<string>((resolve) => {
+        const socket = new WebSocket("wss://example.com/private");
+        socket.addEventListener("open", () => resolve("opened"));
+        socket.addEventListener("error", () => resolve("blocked"));
+        socket.addEventListener("close", () => resolve("blocked"));
+        setTimeout(() => resolve("timeout"), 2_000);
+      }),
+  );
+
+  assert.equal(outcome, "blocked");
+});
 
 test("extracts only visible safe anchors without form values or raw HTML", async (context) => {
   const browser = await chromium.launch({ channel: "chrome", headless: true });

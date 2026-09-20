@@ -1,4 +1,11 @@
-import { chromium, type Browser, type BrowserContext, type Page, type Route } from "playwright";
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type BrowserContextOptions,
+  type Page,
+  type Route,
+} from "playwright";
 
 import type { PageSnapshot, RawPageSnapshot } from "../contracts.js";
 import { assertPublicHostname, validateStartUrl } from "../security/url-policy.js";
@@ -6,6 +13,18 @@ import type { BrowserDriver, BrowserSession } from "./browser-driver.js";
 import { buildSnapshot } from "./snapshot.js";
 
 const NAVIGATION_TIMEOUT_MS = 15_000;
+
+export const ISOLATED_CONTEXT_OPTIONS = {
+  acceptDownloads: false,
+  javaScriptEnabled: false,
+  serviceWorkers: "block",
+} satisfies BrowserContextOptions;
+
+export async function blockWebSockets(context: BrowserContext): Promise<void> {
+  await context.routeWebSocket(/.*/, async (socket) => {
+    await socket.close({ code: 1008, reason: "WebSockets are blocked by Jev Guard" });
+  });
+}
 
 export async function snapshotPage(page: Page): Promise<PageSnapshot> {
   const raw = await page.evaluate<RawPageSnapshot>(() => {
@@ -114,15 +133,13 @@ export class PlaywrightBrowserDriver implements BrowserDriver {
     await assertPublicHostname(url.hostname);
 
     const browser = await chromium.launch({ channel: "chrome", headless: true });
-    const context = await browser.newContext({
-      acceptDownloads: false,
-      serviceWorkers: "block",
-    });
+    const context = await browser.newContext(ISOLATED_CONTEXT_OPTIONS);
     const page = await context.newPage();
     page.on("popup", (popup) => void popup.close());
     page.on("download", (download) => void download.cancel());
 
     try {
+      await blockWebSockets(context);
       await installNetworkPolicy(context, page, url.origin);
       await page.goto(url.href, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
       const finalUrl = validateStartUrl(page.url());

@@ -188,10 +188,10 @@ test("rejects an answer outside the bounded choice set", async () => {
 **Interfaces:**
 - Documents the trust boundary, remaining DNS-rebinding/GET-side-effect risks, data sent to TypeSafe, and the later Codex registration command without applying it.
 
-- [ ] **Step 1: Write a failing documentation test requiring the safety boundary, prohibited actions, data-flow statement, Keychain launcher, residual risks, and explicit non-registration status**
-- [ ] **Step 2: Run it and verify failure because the documents are absent**
-- [ ] **Step 3: Write the README, architecture document, and threat model with exact setup and verification commands**
-- [ ] **Step 4: Add a live smoke script that defaults to preview-only and executes one Wikipedia same-origin link only with explicit `--execute`**
-- [ ] **Step 5: Run `npm test`, `npm run typecheck`, `npm run build`, `npm audit --omit=dev`, and `npm pack --dry-run`**
-- [ ] **Step 6: Run the preview-only live smoke test using the existing Keychain-backed TypeSafe credential; report attempts, tokens, selected action, confidence, and browser closure without printing secrets**
-- [ ] **Step 7: Review every Global Constraint against code/tests, inspect `git diff --check` and `git status --short`, then commit with `git commit -m "docs: document Jev Guard pilot boundaries"`**
+- [x] **Step 1: Write a failing documentation test requiring the safety boundary, prohibited actions, data-flow statement, Keychain launcher, residual risks, and explicit non-registration status**
+- [x] **Step 2: Run it and verify failure because the documents are absent**
+- [x] **Step 3: Write the README, architecture document, and threat model with exact setup and verification commands**
+- [x] **Step 4: Add a live smoke script that defaults to preview-only and executes one Wikipedia same-origin link only with explicit `--execute`**
+- [x] **Step 5: Run `npm test`, `npm run typecheck`, `npm run build`, `npm audit --omit=dev`, and `npm pack --dry-run`**
+- [x] **Step 6: Run the preview-only live smoke test using the existing Keychain-backed TypeSafe credential; report attempts, tokens, selected action, confidence, and browser closure without printing secrets**
+- [x] **Step 7: Review every Global Constraint against code/tests, inspect `git diff --check` and `git status --short`, then commit with `git commit -m "docs: document Jev Guard pilot boundaries"`**
