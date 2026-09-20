@@ -1,0 +1,29 @@
+{
+  "name": "jev-guard-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A guarded Jev decision layer for public, isolated browser navigation.",
+  "type": "module",
+  "bin": {
+    "jev-guard-mcp": "dist/src/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "tsx --test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@typesafe-ai/sdk": "0.6.0",
+    "playwright": "1.63.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}

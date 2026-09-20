@@ -40,8 +40,8 @@
 **Interfaces:**
 - Produces: `validateStartUrl(raw: string): URL`, `candidateUrl(base: URL, href: string, download: boolean): URL | null`, `assertPublicHostname(hostname: string, lookup?: Lookup): Promise<void>`.
 
-- [ ] **Step 1: Add the pinned package metadata, strict TypeScript configuration, and ignore rules needed to run tests**
-- [ ] **Step 2: Write failing URL-policy tests**
+- [x] **Step 1: Add the pinned package metadata, strict TypeScript configuration, and ignore rules needed to run tests**
+- [x] **Step 2: Write failing URL-policy tests**
 
 ```ts
 test("accepts a public HTTPS start URL and strips nothing locally", () => {
@@ -60,10 +60,10 @@ test("rejects localhost, credentials, HTTP, query candidates, cross-origin links
 });
 ```
 
-- [ ] **Step 3: Run `npm test -- test/url-policy.test.ts` and verify failure because the module is absent**
-- [ ] **Step 4: Add contracts, URL parsing, risky-path denylist, `node:net` private-range blocking, and injectable DNS lookup**
-- [ ] **Step 5: Run the focused test and verify it passes**
-- [ ] **Step 6: Commit with `git commit -m "feat: establish Jev Guard security contracts"`**
+- [x] **Step 3: Run `npm test -- test/url-policy.test.ts` and verify failure because the module is absent**
+- [x] **Step 4: Add contracts, URL parsing, risky-path denylist, `node:net` private-range blocking, and injectable DNS lookup**
+- [x] **Step 5: Run the focused test and verify it passes**
+- [x] **Step 6: Commit with `git commit -m "feat: establish Jev Guard security contracts"`**
 
 ### Task 2: Redacted snapshots and bounded candidates
 
