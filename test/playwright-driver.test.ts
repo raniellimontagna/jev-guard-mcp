@@ -5,6 +5,7 @@ import { chromium } from "playwright";
 
 import {
   blockWebSockets,
+  installNetworkPolicy,
   ISOLATED_CONTEXT_OPTIONS,
   snapshotPage,
 } from "../src/browser/playwright-driver.js";
@@ -34,6 +35,34 @@ test("blocks page WebSockets without connecting to the remote server", async (co
   );
 
   assert.equal(outcome, "blocked");
+});
+
+test("rechecks the hostname for every request and blocks rejected hosts", async (context) => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  context.after(() => browser.close());
+  const browserContext = await browser.newContext();
+  const page = await browserContext.newPage();
+  let checks = 0;
+  await installNetworkPolicy(browserContext, page, "https://example.com", async (hostname) => {
+    assert.equal(hostname, "repeat.example");
+    checks += 1;
+    throw new Error("blocked test host");
+  });
+
+  await page.setContent(
+    '<img src="https://repeat.example/one"><img src="https://repeat.example/two">',
+  );
+  assert.equal(checks, 2);
+});
+
+test("blocks cross-origin main-frame navigation before a network connection", async (context) => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  context.after(() => browser.close());
+  const browserContext = await browser.newContext();
+  const page = await browserContext.newPage();
+  await installNetworkPolicy(browserContext, page, "https://example.com", async () => undefined);
+
+  await assert.rejects(() => page.goto("https://other.example/path"), /ERR_(?:FAILED|BLOCKED_BY_CLIENT)/);
 });
 
 test("extracts only visible safe anchors without form values or raw HTML", async (context) => {

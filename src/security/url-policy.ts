@@ -41,6 +41,20 @@ const riskyPath =
   /(?:^|[\/_\-.])(logout|signout|unsubscribe|delete|remove|destroy|checkout|purchase|payment|download|export|oauth|authorize|login|signin|signup|register|confirm)(?:$|[\/_\-.])/i;
 const binaryPath = /\.(?:zip|dmg|pkg|exe|msi|deb|rpm|tar|gz|7z|iso)$/i;
 
+function decodePath(pathname: string): string | null {
+  let decoded = pathname;
+  try {
+    for (let pass = 0; pass < 5; pass += 1) {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) return next.normalize("NFKC");
+      decoded = next;
+    }
+  } catch {
+    return null;
+  }
+  return /%[0-9a-f]{2}/i.test(decoded) ? null : decoded.normalize("NFKC");
+}
+
 function normalizedIp(address: string): { address: string; family: "ipv4" | "ipv6" } | null {
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address);
   if (mapped?.[1]) return { address: mapped[1], family: "ipv4" };
@@ -88,7 +102,8 @@ export function candidateUrl(base: URL, href: string, download: boolean): URL | 
   }
   if (candidate.protocol !== "https:" || candidate.origin !== base.origin) return null;
   if (candidate.username || candidate.password || candidate.search) return null;
-  if (riskyPath.test(candidate.pathname) || binaryPath.test(candidate.pathname)) return null;
+  const decodedPath = decodePath(candidate.pathname);
+  if (!decodedPath || riskyPath.test(decodedPath) || binaryPath.test(decodedPath)) return null;
   try {
     assertSyntacticallyPublicHostname(candidate.hostname);
   } catch {

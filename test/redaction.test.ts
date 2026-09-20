@@ -21,3 +21,10 @@ test("removes query strings, fragments and credentials from public URLs", () => 
     "https://example.com/path",
   );
 });
+
+test("removes query strings from absolute URLs embedded in text", () => {
+  assert.equal(
+    redactText("Open https://example.com/report?token=secret#section now"),
+    "Open https://example.com/report now",
+  );
+});

@@ -58,6 +58,15 @@ test("returns no executable candidate below the confidence floor", async () => {
   });
 });
 
+test("uses the lower of reported confidence and selected probability for the safety floor", async () => {
+  const decision = await clientWith(
+    response("link_0", 0.99, { done: 0.33, blocked: 0.33, link_0: 0.34 }),
+  ).choose({ goal: "Read docs", snapshot });
+
+  assert.equal(decision.status, "low_confidence");
+  assert.equal(decision.confidence, 0.34);
+});
+
 test("maps a confident bounded choice to its code-owned candidate", async () => {
   const decision = await clientWith(response("link_0", 0.93, { done: 0.02, blocked: 0.05, link_0: 0.93 })).choose({
     goal: "Read docs",

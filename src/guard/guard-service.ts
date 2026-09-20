@@ -126,8 +126,8 @@ export class GuardService {
       }
 
       const result = await pending.browser.navigate(candidate.url);
-      if (new URL(result.sourceUrl).origin !== new URL(candidate.url).origin) {
-        throw new Error("Navigation postcondition failed: origin changed");
+      if (result.sourceUrl !== candidate.url) {
+        throw new Error("Navigation postcondition failed: page left the exact approved destination");
       }
       return {
         status: "navigated",

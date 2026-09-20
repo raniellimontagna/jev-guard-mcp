@@ -1,10 +1,18 @@
 const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const phonePattern = /(?:\+?\d[\d\s().-]{8,}\d)/g;
 const tokenPattern = /\b[A-Za-z0-9_-]{24,}\b/g;
+const absoluteUrlPattern = /https?:\/\/[^\s<>"']+/gi;
 
 export function redactText(value: string, maxLength = 3_000): string {
   return value
     .normalize("NFKC")
+    .replace(absoluteUrlPattern, (url) => {
+      try {
+        return publicUrl(url);
+      } catch {
+        return "[REDACTED_URL]";
+      }
+    })
     .replace(emailPattern, "[REDACTED_EMAIL]")
     .replace(phonePattern, "[REDACTED_PHONE]")
     .replace(tokenPattern, "[REDACTED_TOKEN]")

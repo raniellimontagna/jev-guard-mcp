@@ -8,7 +8,7 @@ import {
 } from "playwright";
 
 import type { PageSnapshot, RawPageSnapshot } from "../contracts.js";
-import { assertPublicHostname, validateStartUrl } from "../security/url-policy.js";
+import { assertPublicHostname, candidateUrl, validateStartUrl } from "../security/url-policy.js";
 import type { BrowserDriver, BrowserSession } from "./browser-driver.js";
 import { buildSnapshot } from "./snapshot.js";
 
@@ -55,17 +55,12 @@ export async function snapshotPage(page: Page): Promise<PageSnapshot> {
   return buildSnapshot(raw);
 }
 
-async function installNetworkPolicy(context: BrowserContext, page: Page, allowedOrigin: string): Promise<void> {
-  const checkedHosts = new Map<string, Promise<void>>();
-
-  const checkHost = (hostname: string): Promise<void> => {
-    const existing = checkedHosts.get(hostname);
-    if (existing) return existing;
-    const pending = assertPublicHostname(hostname);
-    checkedHosts.set(hostname, pending);
-    return pending;
-  };
-
+export async function installNetworkPolicy(
+  context: BrowserContext,
+  page: Page,
+  allowedOrigin: string,
+  assertHost: (hostname: string) => Promise<void> = assertPublicHostname,
+): Promise<void> {
   await context.route("**/*", async (route: Route) => {
     try {
       const request = route.request();
@@ -85,7 +80,7 @@ async function installNetworkPolicy(context: BrowserContext, page: Page, allowed
         return;
       }
 
-      await checkHost(url.hostname);
+      await assertHost(url.hostname);
       await route.continue();
     } catch {
       await route.abort("blockedbyclient").catch(() => undefined);
@@ -112,10 +107,13 @@ class PlaywrightSession implements BrowserSession {
     if (this.#closed) throw new Error("Browser session is closed");
     const url = validateStartUrl(rawUrl);
     if (url.origin !== this.allowedOrigin) throw new Error("Cross-origin navigation is blocked");
+    const current = validateStartUrl(this.page.url());
+    const approved = candidateUrl(current, url.href, false);
+    if (!approved || approved.href !== url.href) throw new Error("Navigation URL is outside the approved policy");
     await assertPublicHostname(url.hostname);
     await this.page.goto(url.href, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
     const finalUrl = validateStartUrl(this.page.url());
-    if (finalUrl.origin !== this.allowedOrigin) throw new Error("Navigation left the allowed origin");
+    if (finalUrl.href !== url.href) throw new Error("Navigation left the exact approved destination");
     return snapshotPage(this.page);
   }
 

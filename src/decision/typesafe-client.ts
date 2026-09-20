@@ -144,16 +144,19 @@ export class TypeSafeJevClient implements JevClient {
       outputTokens: response.usage.output_tokens,
       model: response.model,
     };
+    const selectedProbability = answer.probabilities[answer.choice];
+    if (selectedProbability === undefined) throw new Error("Jev omitted the selected probability");
+    const effectiveConfidence = Math.min(answer.confidence, selectedProbability);
 
-    if (answer.confidence < this.minConfidence) {
-      return { status: "low_confidence", confidence: answer.confidence, choice: answer.choice, usage };
+    if (effectiveConfidence < this.minConfidence) {
+      return { status: "low_confidence", confidence: effectiveConfidence, choice: answer.choice, usage };
     }
     if (answer.choice === "done" || answer.choice === "blocked") {
-      return { status: answer.choice, confidence: answer.confidence, choice: answer.choice, usage };
+      return { status: answer.choice, confidence: effectiveConfidence, choice: answer.choice, usage };
     }
 
     const candidate = input.snapshot.candidates.find(({ id }) => id === answer.choice);
     if (!candidate) throw new Error("Jev answer is outside the offered action set");
-    return { status: "ready", confidence: answer.confidence, choice: answer.choice, candidate, usage };
+    return { status: "ready", confidence: effectiveConfidence, choice: answer.choice, candidate, usage };
   }
 }

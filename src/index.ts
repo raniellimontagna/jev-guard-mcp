@@ -5,6 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { PlaywrightBrowserDriver } from "./browser/playwright-driver.js";
 import { createTypeSafeTransport, TypeSafeJevClient } from "./decision/typesafe-client.js";
 import { GuardService } from "./guard/guard-service.js";
+import { createShutdown, installStdioLifecycle } from "./lifecycle.js";
 import { createMcpServer } from "./mcp/server.js";
 
 async function main(): Promise<void> {
@@ -16,10 +17,8 @@ async function main(): Promise<void> {
     new TypeSafeJevClient(createTypeSafeTransport(apiKey)),
   );
   const server = createMcpServer(guard);
-  const shutdown = async () => {
-    await guard.close();
-    await server.close();
-  };
+  const shutdown = createShutdown([() => guard.close(), () => server.close()]);
+  installStdioLifecycle(shutdown);
   process.once("SIGINT", () => void shutdown().finally(() => process.exit(0)));
   process.once("SIGTERM", () => void shutdown().finally(() => process.exit(0)));
 

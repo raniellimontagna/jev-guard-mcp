@@ -24,6 +24,8 @@ test("keeps only same-origin query-free low-risk link candidates", () => {
   assert.equal(candidateUrl(base, "https://example.com/search?q=x", false), null);
   assert.equal(candidateUrl(base, "https://other.example/path", false), null);
   assert.equal(candidateUrl(base, "/logout", false), null);
+  assert.equal(candidateUrl(base, "/%6cogout", false), null);
+  assert.equal(candidateUrl(base, "/%256cogout", false), null);
   assert.equal(candidateUrl(base, "/report.pdf", true), null);
 });
 

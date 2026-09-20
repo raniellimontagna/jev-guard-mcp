@@ -145,6 +145,18 @@ test("consumes the token before a failed navigation", async () => {
   assert.equal(session.closed, true);
 });
 
+test("rejects a redirect away from the exact approved destination", async () => {
+  const redirected = { ...destination, sourceUrl: "https://example.com/docs?redirected=1" };
+  const session = new FakeBrowserSession([page, page], redirected);
+  const guard = service(session);
+  const preview = await guard.preview({ url: page.sourceUrl, goal: "Read docs" });
+  assert.equal(preview.status, "ready");
+  if (preview.status !== "ready") return;
+
+  await assert.rejects(() => guard.execute(preview.token), /exact approved destination/);
+  assert.equal(session.closed, true);
+});
+
 test("rejects and closes expired tokens", async () => {
   let now = 1_000;
   const store = new SessionStore({ now: () => now, tokenFactory: () => "t".repeat(43) });
