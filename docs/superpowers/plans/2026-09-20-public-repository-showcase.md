@@ -61,7 +61,7 @@ test("repository-owned banner is accessible and self-contained", async () => {
   assert.match(banner, /<svg[^>]+role="img"/);
   assert.match(banner, /<title>Jev Guard MCP<\/title>/);
   assert.match(banner, /observe.*choose.*approve.*navigate/is);
-  assert.doesNotMatch(banner, /https?:\/\//i);
+  assert.doesNotMatch(banner, /<(?:image|use)[^>]+(?:href|xlink:href)="https?:\/\//i);
   assert.doesNotMatch(banner, /<script/i);
 });
 ```
