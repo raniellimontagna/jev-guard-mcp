@@ -50,3 +50,21 @@ test("threat model records prohibited actions and residual risks", async () => {
   assert.match(threatModel, /rede privada/i);
   assert.match(threatModel, /confiança mínima.*0[,.]80/i);
 });
+
+test("public repository includes an MIT license and secret-free pinned CI", async () => {
+  const license = await contents("../LICENSE");
+  const workflow = await contents("../.github/workflows/ci.yml");
+  const packageJson = JSON.parse(await contents("../package.json")) as { files?: string[] };
+
+  assert.match(license, /MIT License/);
+  assert.match(license, /Copyright \(c\) 2026 Ranielli Montagna/);
+  assert.match(workflow, /actions\/checkout@11d5960a326750d5838078e36cf38b85af677262/);
+  assert.match(workflow, /actions\/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020/);
+  assert.match(workflow, /node-version: 22/);
+  assert.match(workflow, /npm ci --ignore-scripts/);
+  assert.match(workflow, /npx playwright install --with-deps chrome/);
+  assert.match(workflow, /npm audit --omit=dev/);
+  assert.doesNotMatch(workflow, /TYPESAFE_API_KEY|smoke:live/);
+  assert.ok(packageJson.files?.includes("LICENSE"));
+  assert.ok(packageJson.files?.includes("docs/assets/jev-guard-banner.svg"));
+});

@@ -11,6 +11,8 @@
     "dist",
     "scripts/run-from-keychain.sh",
     "README.md",
+    "LICENSE",
+    "docs/assets/jev-guard-banner.svg",
     "docs/architecture.md",
     "docs/threat-model.md"
   ],
