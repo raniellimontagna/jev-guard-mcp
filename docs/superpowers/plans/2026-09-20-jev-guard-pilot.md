@@ -169,12 +169,12 @@ test("rejects an answer outside the bounded choice set", async () => {
 - Consumes: `GuardService`.
 - Produces MCP tools `jev_guard_preview`, `jev_guard_execute`, and `jev_guard_cancel` over stdio.
 
-- [ ] **Step 1: Write a failing in-memory MCP client test asserting the three tool schemas, annotations, and structured error responses**
-- [ ] **Step 2: Run the focused test and verify failure because the MCP server is absent**
-- [ ] **Step 3: Implement tools with Zod schemas; describe preview as non-mutating and require a token for execute/cancel**
-- [ ] **Step 4: Implement the stdio entry point with no stdout logging and fail closed when the API key is absent**
-- [ ] **Step 5: Add a Keychain launcher that obtains `typesafe-api-key` only when the environment lacks `TYPESAFE_API_KEY`, exports it without printing it, and execs `node dist/index.js`**
-- [ ] **Step 6: Verify MCP tests, `npm run typecheck`, and `npm run build`; commit with `git commit -m "feat: expose guarded navigation over MCP"`**
+- [x] **Step 1: Write a failing in-memory MCP client test asserting the three tool schemas, annotations, and structured error responses**
+- [x] **Step 2: Run the focused test and verify failure because the MCP server is absent**
+- [x] **Step 3: Implement tools with Zod schemas; describe preview as non-mutating and require a token for execute/cancel**
+- [x] **Step 4: Implement the stdio entry point with no stdout logging and fail closed when the API key is absent**
+- [x] **Step 5: Add a Keychain launcher that obtains `typesafe-api-key` only when the environment lacks `TYPESAFE_API_KEY`, exports it without printing it, and execs `node dist/src/index.js`**
+- [x] **Step 6: Verify MCP tests, `npm run typecheck`, and `npm run build`; commit with `git commit -m "feat: expose guarded navigation over MCP"`**
 
 ### Task 7: Threat model, operator guide, and bounded live smoke test
 
