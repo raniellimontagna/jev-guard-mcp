@@ -105,7 +105,7 @@ test("redacts sensitive text", () => {
 - Consumes: `PageSnapshot`.
 - Produces: `JevClient.choose(input: DecisionInput): Promise<Decision>` and `TypeSafeJevClient`.
 
-- [ ] **Step 1: Write a failing test with an injected transport showing that only `done`, `blocked`, and code-created candidate IDs are accepted**
+- [x] **Step 1: Write a failing test with an injected transport showing that only `done`, `blocked`, and code-created candidate IDs are accepted**
 
 ```ts
 test("rejects an answer outside the bounded choice set", async () => {
@@ -114,11 +114,11 @@ test("rejects an answer outside the bounded choice set", async () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify failure because the decision module is absent**
-- [ ] **Step 3: Implement the choice question, exact `jev-1.13.0` model, confidence parsing, and attempt counter incremented before transport invocation**
-- [ ] **Step 4: Add failing tests for confidence below `0.80`, missing candidates, malformed probabilities, timeout propagation, and terminal decisions**
-- [ ] **Step 5: Implement the minimal validation and configure the real SDK client with hard-coded TypeSafe base URL, `maxRetries: 0`, `timeout: 10_000`, and logging off**
-- [ ] **Step 6: Run the complete decision test file and commit with `git commit -m "feat: constrain Jev to bounded navigation choices"`**
+- [x] **Step 2: Run the focused test and verify failure because the decision module is absent**
+- [x] **Step 3: Implement the choice question, exact `jev-1.13.0` model, confidence parsing, and attempt counter incremented before transport invocation**
+- [x] **Step 4: Add failing tests for confidence below `0.80`, missing candidates, malformed probabilities, timeout propagation, and terminal decisions**
+- [x] **Step 5: Implement the minimal validation and configure the real SDK client with hard-coded TypeSafe base URL, `maxRetries: 0`, `timeout: 10_000`, and logging off**
+- [x] **Step 6: Run the complete decision test file and commit with `git commit -m "feat: constrain Jev to bounded navigation choices"`**
 
 ### Task 4: Browser isolation and network enforcement
 

@@ -1,0 +1,144 @@
+import { choice, TypeSafeClient } from "@typesafe-ai/sdk";
+
+import { redactText } from "../security/redaction.js";
+import type { Decision, DecisionInput, JevClient } from "./jev-client.js";
+
+export const JEV_MODEL = "jev-1.13.0";
+export const MIN_CONFIDENCE = 0.8;
+
+interface ChoiceAnswer {
+  type: "choice";
+  choice: string;
+  confidence: number;
+  probabilities: Record<string, number>;
+}
+
+export interface TransportResponse {
+  model: string;
+  usage: { input_tokens: number; output_tokens: number };
+  answers: { next: ChoiceAnswer };
+}
+
+export interface TransportRequest {
+  state: {
+    goal: string;
+    page: { url: string; title: string; text: string };
+    actions: Array<{ id: string; label: string; destination: string }>;
+  };
+  questions: Record<string, unknown>;
+  model: typeof JEV_MODEL;
+}
+
+export type JevTransport = (
+  request: TransportRequest,
+  options: { signal?: AbortSignal },
+) => Promise<TransportResponse>;
+
+export interface JevMetrics {
+  attempts: number;
+}
+
+function validateAnswer(answer: ChoiceAnswer, offered: ReadonlySet<string>): void {
+  if (answer.type !== "choice" || !offered.has(answer.choice)) {
+    throw new Error("Jev answer is outside the offered action set");
+  }
+  if (!Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1) {
+    throw new Error("Jev returned invalid confidence");
+  }
+  const probabilities = Object.values(answer.probabilities);
+  if (
+    probabilities.length === 0 ||
+    probabilities.some((value) => !Number.isFinite(value) || value < 0 || value > 1)
+  ) {
+    throw new Error("Jev returned invalid probabilities");
+  }
+}
+
+export function createTypeSafeTransport(apiKey: string): JevTransport {
+  if (!apiKey) throw new Error("TYPESAFE_API_KEY is required");
+  const client = new TypeSafeClient({
+    apiKey,
+    baseURL: "https://api.typesafe.ai",
+    defaultModel: JEV_MODEL,
+    logLevel: "off",
+    retry: { maxRetries: 0 },
+  });
+
+  return async (request, options) =>
+    (await client.systemOne(request as never, {
+      ...(options.signal ? { signal: options.signal } : {}),
+      timeout: 10_000,
+      retry: { maxRetries: 0 },
+    })) as unknown as TransportResponse;
+}
+
+export class TypeSafeJevClient implements JevClient {
+  readonly metrics: JevMetrics = { attempts: 0 };
+
+  constructor(
+    private readonly transport: JevTransport,
+    private readonly minConfidence = MIN_CONFIDENCE,
+  ) {}
+
+  async choose(input: DecisionInput, options: { signal?: AbortSignal } = {}): Promise<Decision> {
+    if (input.snapshot.candidates.length === 0) {
+      return {
+        status: "blocked",
+        confidence: 1,
+        choice: "blocked",
+        usage: { attempts: this.metrics.attempts, inputTokens: 0, outputTokens: 0, model: JEV_MODEL },
+      };
+    }
+
+    const criteria: Record<string, string> = {
+      done: "The goal is already satisfied by the current page",
+      blocked: "None of the offered safe links advances the goal",
+    };
+    for (const candidate of input.snapshot.candidates) {
+      criteria[candidate.id] = `${candidate.label} -> ${candidate.publicUrl}`;
+    }
+
+    const request: TransportRequest = {
+      state: {
+        goal: redactText(input.goal, 500),
+        page: {
+          url: input.snapshot.publicUrl,
+          title: input.snapshot.title,
+          text: input.snapshot.text,
+        },
+        actions: input.snapshot.candidates.map((candidate) => ({
+          id: candidate.id,
+          label: candidate.label,
+          destination: candidate.publicUrl,
+        })),
+      },
+      questions: {
+        next: choice("Which single safe navigation best advances the goal?", criteria),
+      },
+      model: JEV_MODEL,
+    };
+
+    this.metrics.attempts += 1;
+    const response = await this.transport(request, options.signal ? { signal: options.signal } : {});
+    const answer = response.answers.next;
+    validateAnswer(answer, new Set(Object.keys(criteria)));
+
+    const usage = {
+      attempts: this.metrics.attempts,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      model: response.model,
+    };
+
+    if (answer.confidence < this.minConfidence) {
+      return { status: "low_confidence", confidence: answer.confidence, choice: answer.choice, usage };
+    }
+    if (answer.choice === "done" || answer.choice === "blocked") {
+      return { status: answer.choice, confidence: answer.confidence, choice: answer.choice, usage };
+    }
+
+    const candidate = input.snapshot.candidates.find(({ id }) => id === answer.choice);
+    if (!candidate) throw new Error("Jev answer is outside the offered action set");
+    return { status: "ready", confidence: answer.confidence, choice: answer.choice, candidate, usage };
+  }
+}
