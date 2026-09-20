@@ -20,13 +20,14 @@ test("README presents the public project without overstating its authority", asy
   assert.match(readme, /TYPESAFE_API_KEY/);
   assert.match(readme, /human approval/i);
   assert.match(readme, /experimental/i);
+  assert.match(readme, /Released under the \[MIT License\]\(LICENSE\)\./);
   assert.doesNotMatch(readme, /não foi publicado|not published/i);
 });
 
 test("repository-owned banner is accessible and self-contained", async () => {
   const banner = await contents("../docs/assets/jev-guard-banner.svg");
   assert.match(banner, /<svg[^>]+role="img"/);
-  assert.match(banner, /<title>Jev Guard MCP<\/title>/);
+  assert.match(banner, /<title id="title">Jev Guard MCP<\/title>/);
   assert.match(banner, /observe.*choose.*approve.*navigate/is);
   assert.doesNotMatch(banner, /<(?:image|use)[^>]+(?:href|xlink:href)="https?:\/\//i);
   assert.doesNotMatch(banner, /<script/i);

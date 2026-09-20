@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 420">
-  <title>Jev Guard MCP</title>
+  <title id="title">Jev Guard MCP</title>
   <desc id="desc">A guarded browser decision flow: observe, choose, approve, navigate.</desc>
   <rect width="1200" height="420" rx="28" fill="#0b1012"/>
   <path d="M0 318 C220 260 350 390 570 320 S950 230 1200 290 V420 H0Z" fill="#101a1b"/>

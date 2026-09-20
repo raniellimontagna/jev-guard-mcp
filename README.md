@@ -159,3 +159,5 @@ Contributions should preserve the code-owned action boundary. Expanding into aut
 ## Status and license
 
 Jev Guard MCP is experimental research software. It is not a general-purpose browser agent and should not be used for authenticated, private or high-consequence workflows.
+
+Released under the [MIT License](LICENSE).
