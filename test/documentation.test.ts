@@ -49,6 +49,14 @@ test("architecture documents code-owned policy and data sent to TypeSafe", async
   assert.match(architecture, /Playwright.*executa/is);
   assert.match(architecture, /TypeSafe.*texto redigido/is);
   assert.match(architecture, /query strings.*não/is);
+  assert.match(architecture, /URLs absolutas públicas de origem e caminho, após remover credenciais, query strings e fragmentos/);
+  assert.doesNotMatch(architecture, /URLs completas não são enviadas/);
+});
+
+test("live smoke keeps the fixed public source and explicitly names the bounded target link", async () => {
+  const smoke = await contents("../scripts/smoke-live.ts");
+  assert.match(smoke, /https:\/\/en\.wikipedia\.org\/wiki\/Headless_browser/);
+  assert.ok(smoke.includes('Open the link labeled "web browser" leading to the Wikipedia Web browser article'));
 });
 
 test("threat model records prohibited actions and residual risks", async () => {

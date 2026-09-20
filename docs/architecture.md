@@ -18,7 +18,7 @@ aprovação humana -> jev_guard_execute -> reobserva -> valida -> page.goto -> v
 
 ## Dados enviados ao TypeSafe
 
-O TypeSafe recebe somente texto redigido e limitado: objetivo, título, trecho visível, origem/caminho público e até 80 pares de rótulo/destino. E-mails, telefones e tokens longos são substituídos antes da requisição. Query strings não são enviadas, URLs completas não são enviadas, e valores de inputs não são lidos.
+O TypeSafe recebe somente texto redigido e limitado: objetivo, título, trecho visível, origem/caminho público e até 80 pares de rótulo/destino. Os destinos incluem URLs absolutas públicas de origem e caminho, após remover credenciais, query strings e fragmentos. E-mails, telefones e tokens longos são substituídos antes da requisição. Query strings não são enviadas, e valores de inputs não são lidos.
 
 Não são enviados screenshots, HTML, cookies, local storage, seletores, coordenadas ou dados do perfil Chrome.
 

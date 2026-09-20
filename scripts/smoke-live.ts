@@ -5,7 +5,7 @@ import { GuardService } from "../src/guard/guard-service.js";
 const execute = process.argv.includes("--execute");
 const positional = process.argv.slice(2).filter((value) => value !== "--execute");
 const url = positional[0] ?? "https://en.wikipedia.org/wiki/Headless_browser";
-const goal = positional[1] ?? "Open the Wikipedia article about web browsers";
+const goal = positional[1] ?? 'Open the link labeled "web browser" leading to the Wikipedia Web browser article';
 const apiKey = process.env.TYPESAFE_API_KEY?.trim();
 
 if (!apiKey) throw new Error("TYPESAFE_API_KEY is required for the live smoke test");
