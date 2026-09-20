@@ -130,12 +130,12 @@ test("rejects an answer outside the bounded choice set", async () => {
 **Interfaces:**
 - Produces: `BrowserDriver.open(url): Promise<BrowserSession>`; a session supports `snapshot()`, `navigate(url)`, and `close()`.
 
-- [ ] **Step 1: Write a failing Playwright test that loads static HTML with `page.setContent()` and proves hidden, query-bearing, cross-origin, download and risky anchors are excluded**
-- [ ] **Step 2: Run it and verify failure because the driver does not exist**
-- [ ] **Step 3: Implement Chrome-channel launch, fresh context, blocked service workers/downloads/popups, request routing through the public-host policy, and DOM extraction limited to visible anchors**
-- [ ] **Step 4: Add a failing test showing input values and raw HTML never appear in the snapshot**
-- [ ] **Step 5: Implement snapshot extraction and verify the focused test file passes**
-- [ ] **Step 6: Commit with `git commit -m "feat: add isolated Playwright observer"`**
+- [x] **Step 1: Write a failing Playwright test that loads static HTML with `page.setContent()` and proves hidden, query-bearing, cross-origin, download and risky anchors are excluded**
+- [x] **Step 2: Run it and verify failure because the driver does not exist**
+- [x] **Step 3: Implement Chrome-channel launch, fresh context, blocked service workers/downloads/popups, request routing through the public-host policy, and DOM extraction limited to visible anchors**
+- [x] **Step 4: Add a failing test showing input values and raw HTML never appear in the snapshot**
+- [x] **Step 5: Implement snapshot extraction and verify the focused test file passes**
+- [x] **Step 6: Commit with `git commit -m "feat: add isolated Playwright observer"`**
 
 ### Task 5: Preview, single-use execution, and freshness
 
