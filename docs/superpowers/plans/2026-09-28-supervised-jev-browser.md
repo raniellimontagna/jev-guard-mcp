@@ -80,10 +80,10 @@
 
 **Interfaces:** `InteractiveBrowserDriver.open(OpenBrowserOptions): Promise<InteractiveBrowserSession>`; session supports `snapshot()`, `finishManualLogin()`, `execute(candidate, value?)`, `close()`. Test constructor injection permits a fixture resolver and headless Chrome without weakening production defaults.
 
-- [ ] Write failing browser tests with a synthetic HTTPS page for DOM extraction, JavaScript-enabled disclosure/link actions, blocked popup/download/WebSocket, manual-login handoff, browser redirects through the proxy and standard form submission.
-- [ ] Run `npm test -- test/interactive-browser-driver.test.ts`; expect missing implementation failure.
-- [ ] Implement fresh contexts with the existing minimal `browserEnvironment()`, `acceptDownloads:false`, `serviceWorkers:"block"` and `blockWebSockets()`. Auth opens headed Chrome; public opens headless. Use DOM actions only after candidate freshness is rechecked, enforce `siteOrigin`, and always close context/browser on failure.
-- [ ] Verify focused tests and typecheck; commit as `feat: add supervised Playwright sessions`.
+- [x] Write failing browser tests with a synthetic HTTPS page for DOM extraction, JavaScript-enabled disclosure/link, scroll/wait, manual-login handoff and browser redirects through the proxy. Task 6 covers form submission; Task 8 verifies popup/download/WebSocket blocking in the assembled flow.
+- [x] Run `npm test -- test/interactive-browser-driver.test.ts`; expect missing implementation failure.
+- [x] Implement fresh contexts with the existing minimal `browserEnvironment()`, `acceptDownloads:false`, `serviceWorkers:"block"` and `blockWebSockets()`. Auth opens headed Chrome; public opens headless. Use DOM actions only after candidate freshness is rechecked, enforce `siteOrigin`, and always close context/browser on failure.
+- [x] Verify focused tests and typecheck; commit as `feat: add supervised Playwright sessions`.
 
 ### Task 5: Preview, approval and lifecycle
 
@@ -123,6 +123,7 @@
 **Files:** Add `test/interactive-e2e.test.ts` only if the earlier fixture tests do not cover the full preview → execute → preview sequence. Update the plan checkboxes and docs only for verified behavior.
 
 - [ ] Run the complete synthetic public reading and manual-login form workflows with an injected Jev transport. Verify every action has a preview and one consumed token.
+- [ ] Verify that popup windows close, downloads are cancelled and WebSockets cannot connect in the assembled Playwright context.
 - [ ] Run `npm test`, `npm run typecheck`, `npm run build`, `npm audit --omit=dev`, `git diff --check`, and a local MCP handshake. Record exact pass/fail counts.
 - [ ] Review the specification line by line against code and tests. Mark unsupported sites/actions honestly in README and threat model.
 - [ ] Confirm no real form was sent, no secret appeared in test output or Git diff, no global MCP config changed, and the working tree contains only intentional files. Commit final verification/docs changes if any.
