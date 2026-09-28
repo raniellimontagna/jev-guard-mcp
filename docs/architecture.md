@@ -1,4 +1,4 @@
-# Arquitetura do piloto
+# Arquitetura: guarda público original
 
 ## Responsabilidades
 
@@ -35,3 +35,22 @@ O SessionStore reserva capacidade antes de abrir browser ou chamar o modelo. A r
 ## Dependências e credenciais
 
 As dependências diretas e o modelo `jev-1.13.0` são fixados. O SDK TypeSafe usa base URL constante, zero retries automáticos, timeout de 10 segundos e logging desligado. O cliente rejeita respostas que aleguem outro modelo ou tragam métricas de uso inválidas. A chave vem somente do ambiente; `scripts/run-from-keychain.sh` pode carregá-la do Keychain sem imprimi-la.
+
+## Modo supervisionado `jev_browser_*`
+
+Este modo é independente dos três `jev_guard_*`. `InteractiveSessionService` gerencia no máximo duas sessões isoladas por 15 minutos, 20 ações e 25 decisões do Jev. Cada decisão gera apenas um candidato e um token de 120 segundos. `preview` não executa o candidato; `execute` consome o token, reobserva URL, elemento e fingerprint e realiza uma única ação. Erro fatal, cancelamento ou término fecha o Chrome e apaga os valores em memória. O cliente MCP confiável precisa obter aprovação humana por ação.
+
+```text
+Codex -> jev_browser_open -> Chrome isolado -> URL inicial
+       -> jev_browser_preview -> DOM limitado -> IDs de ações -> TypeSafe/Jev
+Codex <- origem + ação + confiança + valor/campos relevantes + token
+aprovação humana -> jev_browser_execute -> reobservação -> ação única
+```
+
+O observador extrai links, controles visíveis, campos e formulários; o construtor filtra ações para a origem declarada e até 80 candidatos. Jev recebe objetivo, texto limitado e redigido, rótulos, destinos públicos e chaves semânticas dos valores. O transporte TypeSafe não recebe os valores, campos ocultos, cookies, HTML ou seletores. Após preenchimento, valores conhecidos também são removidos do texto que pode voltar a Jev. Essa redação não garante sigilo de todo conteúdo privado: o modo autenticado exige opt-in explícito antes de enviar texto visível ao TypeSafe.
+
+O login autenticado acontece manualmente em janela Chrome headed e origem de autenticação aprovada. Enquanto o login está pendente, nenhuma página é enviada a Jev. A passagem ao modo supervisionado exige retorno à origem principal e ausência de campo de senha visível. O estado autenticado se perde ao fechar a sessão.
+
+O Chrome supervisionado usa JavaScript, bloqueia service workers, WebSockets, downloads e popups e usa um proxy CONNECT local. O proxy aceita somente origens HTTPS listadas, resolve todos os endereços, rejeita IPs privados e conecta ao IP público verificado. O interceptor Playwright aplica fases: abertura, login manual, leitura supervisionada, bloqueio após valor e um único POST aprovado. GET/HEAD supervisionados podem buscar recursos da origem principal e de `resourceOrigins`; documentos principais exigem URL exata. Redirecionamentos supervisionados são abortados.
+
+Antes de preencher ou selecionar, a rede é travada; isso inclui requisições disparadas por handlers de input. O formulário aceito é HTML nativo com método POST, destino HTTPS da origem principal, enctype `application/x-www-form-urlencoded`, target na própria aba, sem arquivo nem override no botão. A prévia lista campos não ocultos e marca os ocultos sem mostrar o valor. O fingerprint inclui todos os campos; a execução revalida formulário e payload, ignora handlers JavaScript de submit por meio do método nativo, e permite no interceptor apenas um POST de documento principal com URL e corpo exatos. Resposta 2xx significa `submitted` no nível HTTP. Redirect, falha ou ausência de confirmação são tratados conservadoramente; nunca há retry automático. Sites que dependem de handlers de submit ou validação remota ficam bloqueados.

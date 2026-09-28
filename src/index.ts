@@ -5,6 +5,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { PlaywrightBrowserDriver } from "./browser/playwright-driver.js";
 import { createTypeSafeTransport, TypeSafeJevClient } from "./decision/typesafe-client.js";
 import { GuardService } from "./guard/guard-service.js";
+import { InteractiveBrowserDriver } from "./interactive/browser-driver.js";
+import { InteractiveJevClient } from "./interactive/decision.js";
+import { InteractiveSessionService } from "./interactive/session-service.js";
 import { createShutdown, installStdioLifecycle } from "./lifecycle.js";
 import { createMcpServer } from "./mcp/server.js";
 
@@ -16,8 +19,12 @@ async function main(): Promise<void> {
     new PlaywrightBrowserDriver(),
     new TypeSafeJevClient(createTypeSafeTransport(apiKey)),
   );
-  const server = createMcpServer(guard);
-  const shutdown = createShutdown([() => guard.close(), () => server.close()]);
+  const interactive = new InteractiveSessionService(
+    new InteractiveBrowserDriver(),
+    new InteractiveJevClient(createTypeSafeTransport(apiKey)),
+  );
+  const server = createMcpServer(guard, interactive);
+  const shutdown = createShutdown([() => guard.close(), () => interactive.close(), () => server.close()]);
   installStdioLifecycle(shutdown);
   process.once("SIGINT", () => void shutdown().finally(() => process.exit(0)));
   process.once("SIGTERM", () => void shutdown().finally(() => process.exit(0)));

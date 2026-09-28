@@ -113,10 +113,10 @@
 
 **Interfaces:** Register `jev_browser_open`, `jev_browser_preview`, `jev_browser_execute`, `jev_browser_cancel`, `jev_browser_close`. `createMcpServer` accepts an optional interactive API; existing callers continue to get exactly the three old tools.
 
-- [ ] Write failing in-memory MCP tests for all schemas, annotations, stable bounded errors, no secret text in failures and unchanged legacy tool order when interactive API is absent.
-- [ ] Run `npm test -- test/interactive-mcp.test.ts`; expect missing tools.
-- [ ] Register tools with `zod/v4`: exact HTTPS origins, bounded goal/values, mode, data-sharing opt-in and expected result. Mark `execute` as non-idempotent/destructive; all descriptions assign approval to the trusted client. Wire the service in `src/index.ts` and close it during shutdown.
-- [ ] Update docs with real setup, manual login handoff, TypeSafe private-text opt-in, form limits, uncertain outcomes, no real-site activation and the separate residual risks. Run focused tests, documentation tests and typecheck; commit as `feat: expose supervised Jev browser tools`.
+- [x] Write failing in-memory MCP tests for schemas, annotations, stable bounded dependency errors and unchanged legacy tool order when interactive API is absent.
+- [x] Run `npm test -- test/interactive-mcp.test.ts`; observe missing tools.
+- [x] Register tools with `zod/v4`: exact HTTPS origins, bounded goal/values, mode, data-sharing opt-in and expected result. Mark `execute` as non-idempotent/destructive; all descriptions assign approval to the trusted client. Wire the service in `src/index.ts` and close it during shutdown.
+- [x] Update docs with setup, manual login handoff, TypeSafe private-text opt-in, form limits, uncertain outcomes, no real-site activation and separate residual risks. Run focused tests and typecheck; commit as `feat: expose supervised Jev browser tools`.
 
 ### Task 8: Final synthetic verification and review
 

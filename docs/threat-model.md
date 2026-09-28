@@ -1,4 +1,4 @@
-# Threat model
+# Threat model: guarda público original e modo supervisionado
 
 ## Ativos protegidos
 
@@ -8,7 +8,7 @@
 - dados visíveis, query strings, inputs e screenshots;
 - autoridade para executar ações externas.
 
-## Ações proibidas no piloto
+## Ações proibidas no guarda público original
 
 O sistema não digita, não envia formulários, não clica em botões, não executa JavaScript fornecido pelo modelo, não faz uploads ou downloads e não acessa aplicativos nativos. Login, logout, OAuth, compras, pagamentos, exclusões, confirmações, exportações e inscrições são removidos do espaço de ações.
 
@@ -45,6 +45,24 @@ The trusted MCP client is responsible for showing source, label and destination 
 - **CDNs públicas:** subrecursos públicos cross-origin são permitidos após resolução; isso amplia a superfície de tracking da página pública.
 - **Disponibilidade:** desativar JavaScript e bloquear todos os redirects HTTP, candidatos com query strings, frames e controles complexos reduz cobertura intencionalmente.
 
+## Modo supervisionado: controles adicionais
+
+O modo `jev_browser_*` tem seu próprio contexto Chrome efêmero e não herda cookies, armazenamento ou senha do perfil pessoal. O usuário pode fazer login manualmente; a página autenticada só passa ao Jev após opt-in explícito para compartilhar texto visível redigido com TypeSafe. A redação é parcial e não garante remoção de todos os dados privados. Valores fornecidos via MCP ficam apenas na memória da sessão e são removidos das representações destinadas ao modelo, mas campos não controlados podem conter informações privadas desconhecidas.
+
+Cada ação proposta mostra origem, rótulo, destino, confiança e valor ou campos relevantes. O cliente MCP confiável deve obter aprovação humana antes de transmitir o token ao executor; o servidor não comprova essa aprovação. O token é usado uma vez e o estado do DOM e do formulário é revalidado antes da ação. O proxy de saída fixa a conexão ao IP público aprovado e limita hosts/portas às origens declaradas, inclusive para redirects seguidos pelo Chrome durante login. O interceptor Playwright bloqueia métodos não aprovados, documentos em subframes e novos requests após preenchimento. Um POST aprovado exige método, destino, corpo e documento principal exatos, com uma única passagem.
+
+| Risco | Limite e consequência |
+|---|---|
+| Cliente MCP sem aprovação real | Posse do token basta para executar; a integração deve implementar a confirmação humana. |
+| Texto autenticado sensível | Redação imperfeita; escolher páginas e tarefas adequadas ao compartilhamento com TypeSafe. |
+| JavaScript da página | Pode alterar conteúdo, disparar GETs, induzir Jev ou tentar ações. O interceptor bloqueia mutações não aprovadas, mas não prova que GETs são sem efeito. |
+| Login manual | POSTs nas origens de login aprovadas são possíveis enquanto o usuário controla o Chrome; não usar origens amplas desnecessárias. |
+| Valor em handler de input | A trava começa antes do preenchimento e barra novas requisições; scripts podem modificar DOM local, e requisições já iniciadas antes da trava podem terminar. |
+| Formulário com lógica JavaScript | O envio nativo ignora `onsubmit`; sites que dependem dessa lógica ou de endpoint dinâmico não são suportados. |
+| Formulário com dados não revisados | A prévia lista campos não ocultos e sinaliza ocultos. O fingerprint e o corpo exato previnem mudanças silenciosas, mas o usuário deve compreender o significado dos campos. |
+| POST com resposta ambígua | Uma requisição pode ter chegado ao servidor sem confirmação; reportar `outcome_unknown` e investigar externamente, sem retry. Resposta 2xx não prova sucesso de negócio. |
+| Valor passado como argumento | Chaves com nomes de credenciais são rejeitadas; o sistema não consegue reconhecer semanticamente todos os segredos colocados sob nomes inocentes. |
+
 ## Fora de escopo
 
-Contas autenticadas, intranet, localhost, whole-Mac computer use, digitação, formulários, downloads, uploads e transações permanecem fora do piloto.
+O guarda público original continua sem contas autenticadas ou formulários. No modo supervisionado, intranet, localhost, controle do Mac inteiro, downloads, uploads, WebSockets, popups, OAuth, compras, pagamentos, exclusões e envio de formulários geridos apenas por JavaScript permanecem fora de escopo. Testes automatizados usam somente páginas HTTPS sintéticas locais por meio de proxy de teste; um piloto em site real exige política de origem revisada e aprovação de cada ação.

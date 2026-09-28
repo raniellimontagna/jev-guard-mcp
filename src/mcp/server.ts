@@ -6,6 +6,7 @@ import type {
   PreviewRequest,
   PreviewResult,
 } from "../guard/guard-service.js";
+import { registerInteractiveTools, type InteractiveApi } from "../interactive/mcp-tools.js";
 
 export interface GuardApi {
   preview(request: PreviewRequest, options?: { signal?: AbortSignal }): Promise<PreviewResult>;
@@ -45,7 +46,7 @@ function failure(error: unknown) {
   };
 }
 
-export function createMcpServer(guard: GuardApi): McpServer {
+export function createMcpServer(guard: GuardApi, interactive?: InteractiveApi): McpServer {
   const server = new McpServer({ name: "jev-guard-mcp", version: "0.1.0" });
 
   server.registerTool(
@@ -126,5 +127,6 @@ export function createMcpServer(guard: GuardApi): McpServer {
     },
   );
 
+  if (interactive) registerInteractiveTools(server, interactive);
   return server;
 }
