@@ -27,6 +27,7 @@ export interface RawInteractiveElement {
   enabled: boolean;
   href?: string;
   download?: boolean;
+  target?: string;
   buttonEffect?: "disclosure" | "tab";
   name?: string;
   fieldType?: string;

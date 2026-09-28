@@ -15,6 +15,7 @@ import type {
 const MAX_CANDIDATES = 80;
 const RISKY_PATH = /(?:^|[\/_\-.])(logout|signout|unsubscribe|delete|remove|destroy|checkout|purchase|payment|download|export|oauth|authorize|login|signin|signup|register|confirm)(?:$|[\/_\-.])/i;
 const CREDENTIAL_KEY = /(?:^|_)(?:password|passwd|passcode|otp|totp|secret|token|api_key|pin|cookie|session)(?:_|$)/i;
+const SAFE_HIDDEN_FORM_TOKEN = /^(?:csrf(?:_token)?|_csrf|_token|authenticity_token|__requestverificationtoken)$/i;
 const FILLABLE_TYPE = /^(text|email|tel|search|url|number|textarea)$/i;
 
 function decodedPath(pathname: string): string | undefined {
@@ -31,6 +32,11 @@ function decodedPath(pathname: string): string | undefined {
   return /%[0-9a-f]{2}/i.test(current) ? undefined : current.normalize("NFKC");
 }
 
+export function safeInteractivePath(pathname: string): boolean {
+  const path = decodedPath(pathname);
+  return !!path && !RISKY_PATH.test(path);
+}
+
 export function safeValueKey(key: string): boolean {
   return /^[a-z][a-z0-9_]{0,49}$/.test(key) && !CREDENTIAL_KEY.test(key);
 }
@@ -38,8 +44,7 @@ export function safeValueKey(key: string): boolean {
 function sameSiteUrl(raw: string, source: URL, siteOrigin: string): string | undefined {
   try {
     const url = validateStartUrl(new URL(raw, source).href);
-    const path = decodedPath(url.pathname);
-    if (url.origin !== siteOrigin || !path || RISKY_PATH.test(path)) return undefined;
+    if (url.origin !== siteOrigin || !safeInteractivePath(url.pathname)) return undefined;
     url.hash = "";
     return url.href;
   } catch {
@@ -53,7 +58,9 @@ function validForm(form: FormEvidence | undefined, source: URL, siteOrigin: stri
     || !["", "_self"].includes(form.target ?? "")
     || (form.enctype ?? "application/x-www-form-urlencoded") !== "application/x-www-form-urlencoded"
     || form.fields.length > 100 || form.fields.some(({ name, value }) => name.length > 100 || value.length > 4096)) return undefined;
-  if (form.fields.some((field) => CREDENTIAL_KEY.test(field.name) || /^(password|file)$/i.test(field.type ?? ""))) return undefined;
+  if (form.fields.some((field) =>
+    (CREDENTIAL_KEY.test(field.name) && !(field.hidden && SAFE_HIDDEN_FORM_TOKEN.test(field.name)))
+    || /^(password|file)$/i.test(field.type ?? ""))) return undefined;
   const action = sameSiteUrl(form.action, source, siteOrigin);
   if (!action) return undefined;
   return {
@@ -116,7 +123,7 @@ export function buildInteractiveSnapshot(
   for (const element of raw.elements) {
     if (candidates.length >= MAX_CANDIDATES) break;
     if (!element.visible || !element.enabled) continue;
-    if (element.kind === "link" && element.href && !element.download) {
+    if (element.kind === "link" && element.href && !element.download && ["", "_self"].includes(element.target ?? "")) {
       const target = sameSiteUrl(element.href, source, siteOrigin);
       if (target) add(element, "navigate", target);
     } else if (element.kind === "button" && element.buttonEffect) {

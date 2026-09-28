@@ -26,6 +26,8 @@ test("supervised phase blocks mutation and unapproved documents", () => {
   assert.equal(policy.allow({ url: "https://example.com/start", method: "GET", resourceType: "document", isMainFrame: true }), true);
   policy.enterSupervised();
   assert.equal(policy.allow({ url: "https://example.com/api", method: "POST", resourceType: "fetch", isMainFrame: false }), false);
+  assert.equal(policy.allow({ url: "https://example.com/delete?item=1", method: "GET", resourceType: "fetch", isMainFrame: false }), false);
+  assert.equal(policy.allow({ url: "https://example.com/%2564elete?item=1", method: "GET", resourceType: "fetch", isMainFrame: false }), false);
   assert.equal(policy.allow({ url: "https://example.com/next", method: "GET", resourceType: "document", isMainFrame: true }), false);
   policy.approveDocument("https://example.com/next");
   assert.equal(policy.allow({ url: "https://example.com/next", method: "GET", resourceType: "document", isMainFrame: true }), true);

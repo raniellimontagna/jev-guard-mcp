@@ -88,6 +88,7 @@ test("authenticated page text needs opt-in and manual login before Jev", async (
   context.after(() => service.close());
   await assert.rejects(() => service.open({ url: "https://example.com/start", goal: "Read", mode: "auth", origins, values: {} }), /opt-in|sharing/i);
   const opened = await service.open({ url: "https://example.com/start", goal: "Read", mode: "auth", origins, values: {}, shareRedactedPageTextWithTypeSafe: true });
+  assert.match(opened.privacyNotice ?? "", /TypeSafe.*redaction.*best-effort/i);
   assert.equal((await service.preview(opened.sessionId)).status, "login_required");
   assert.equal(jev.calls, 0);
   browser.loginReady = true;

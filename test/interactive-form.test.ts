@@ -166,6 +166,7 @@ test("approved fill locks network and exact approved form sends one POST", async
       response.end(request.url === "/inquiries" ? "<title>Done</title><p>Saved</p>" : `
         <title>Form</title><form action="/inquiries" method="post">
           <label>Message <input name="message" type="text"></label>
+          <label>Category <select name="category"><option value="general">General</option><option value="technical">Technical</option></select></label>
           <input name="csrf" type="hidden" value="CSRF_TEST_ONLY">
           <button type="submit">Send inquiry</button>
         </form>
@@ -173,23 +174,27 @@ test("approved fill locks network and exact approved form sends one POST", async
     });
   });
   try {
-    const browser = await local.driver.open({ url: start, mode: "public", origins, valueKeys: ["message_value"] });
+    const browser = await local.driver.open({ url: start, mode: "public", origins, valueKeys: ["message_value", "category_value"] });
     try {
       const initial = await browser.snapshot();
       const fill = initial.candidates.find(({ kind }) => kind === "fill");
       assert.ok(fill);
       const filled = await browser.execute(fill, "Exact message");
       assert.equal(filled.status, "acted");
-      const submit = filled.snapshot.candidates.find(({ kind }) => kind === "submit");
+      const select = filled.snapshot.candidates.find(({ kind, valueKey }) => kind === "select" && valueKey === "category_value");
+      assert.ok(select);
+      const selected = await browser.execute(select, "technical");
+      assert.equal(selected.status, "acted");
+      const submit = selected.snapshot.candidates.find(({ kind }) => kind === "submit");
       assert.ok(submit);
       assert.deepEqual(submit.form?.fields.map(({ name, value }) => [name, value]), [
-        ["message", "Exact message"], ["csrf", "CSRF_TEST_ONLY"],
+        ["message", "Exact message"], ["category", "technical"], ["csrf", "CSRF_TEST_ONLY"],
       ]);
       const result = await browser.execute(submit);
       assert.equal(result.status, "submitted");
       assert.deepEqual(requests.filter(({ url }) => url.startsWith("/leak")), []);
       assert.deepEqual(requests.filter(({ method }) => method === "POST"), [
-        { method: "POST", url: "/inquiries", body: "message=Exact+message&csrf=CSRF_TEST_ONLY" },
+        { method: "POST", url: "/inquiries", body: "message=Exact+message&category=technical&csrf=CSRF_TEST_ONLY" },
       ]);
     } finally { await browser.close(); }
   } finally { await local.close(); }

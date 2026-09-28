@@ -74,6 +74,14 @@ test("does not offer encoded destructive links or credential-looking value keys"
   assert.doesNotMatch(JSON.stringify(snapshot.modelActions), /client@example\.com|password/);
 });
 
+test("does not offer links that would open another tab", () => {
+  const raw: RawInteractivePage = {
+    ...page,
+    elements: [{ domIndex: 0, kind: "link", label: "Open", visible: true, enabled: true, href: "/next", target: "_blank" }],
+  };
+  assert.deepEqual(buildInteractiveSnapshot(raw, { siteOrigin: "https://example.com" }).candidates, []);
+});
+
 test("changes a fill fingerprint when its field identity changes", () => {
   const raw: RawInteractivePage = {
     ...page,
@@ -116,4 +124,17 @@ test("does not offer a form that would submit credentials", () => {
   };
   const snapshot = buildInteractiveSnapshot(raw, { siteOrigin: "https://example.com" });
   assert.deepEqual(snapshot.candidates, []);
+});
+
+test("allows a hidden CSRF token in an otherwise safe same-origin form", () => {
+  const raw: RawInteractivePage = {
+    ...page,
+    elements: [{ domIndex: 0, kind: "submit", label: "Send", visible: true, enabled: true, form: {
+      action: "https://example.com/inquiries", method: "POST", hasFileInput: false,
+      fields: [{ name: "message", value: "Hello", hidden: false }, { name: "csrf_token", value: "SYNTHETIC_CSRF", hidden: true, type: "hidden" }],
+    } }],
+  };
+  const snapshot = buildInteractiveSnapshot(raw, { siteOrigin: "https://example.com" });
+  assert.equal(snapshot.candidates[0]?.kind, "submit");
+  assert.doesNotMatch(JSON.stringify(snapshot.modelActions), /SYNTHETIC_CSRF/);
 });

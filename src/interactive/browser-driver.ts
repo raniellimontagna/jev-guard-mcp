@@ -17,7 +17,7 @@ export const INTERACTIVE_SELECTOR = "a[href], button, input:not([type=hidden]), 
 
 export async function observeInteractivePage(page: Page): Promise<RawInteractivePage> {
   const raw = await page.evaluate((selector: string) => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>(selector)).map((element, domIndex) => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(selector)).slice(0, 250).map((element, domIndex) => {
       const isAnchor = element instanceof HTMLAnchorElement;
       const isButton = element instanceof HTMLButtonElement;
       const isInput = element instanceof HTMLInputElement;
@@ -32,7 +32,7 @@ export async function observeInteractivePage(page: Page): Promise<RawInteractive
         || element.getAttribute("title")
         || control?.name
         || ""
-      ).trim();
+      ).trim().slice(0, 500);
       const enabled = !("disabled" in element && element.disabled) && element.getAttribute("aria-disabled") !== "true";
       const rect = element.getBoundingClientRect();
       let visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
@@ -44,14 +44,14 @@ export async function observeInteractivePage(page: Page): Promise<RawInteractive
       }
       const common = { domIndex, label, visible, enabled };
 
-      if (isAnchor) return { ...common, kind: "link" as const, href: element.href, download: element.hasAttribute("download") };
+      if (isAnchor) return { ...common, kind: "link" as const, href: element.href, download: element.hasAttribute("download"), target: element.target };
       const form = (isButton || isInput) ? element.form : null;
       if (form && ((isButton && element.type === "submit") || (isInput && element.type === "submit"))) {
-        const fields = Array.from(new FormData(form).entries()).map(([name, value]) => {
+        const fields = Array.from(new FormData(form).entries()).slice(0, 101).map(([name, value]) => {
           const matching = Array.from(form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("[name]"))
             .find((field) => field.name === name);
           const type = matching instanceof HTMLInputElement ? matching.type : matching?.tagName.toLowerCase();
-          return { name, value: typeof value === "string" ? value : value.name, hidden: type === "hidden", ...(type ? { type } : {}) };
+          return { name: name.slice(0, 101), value: (typeof value === "string" ? value : value.name).slice(0, 4097), hidden: type === "hidden", ...(type ? { type } : {}) };
         });
         return { ...common, kind: "submit" as const, form: {
           action: form.action,
@@ -79,7 +79,7 @@ export async function observeInteractivePage(page: Page): Promise<RawInteractive
     return {
       url: location.href,
       title: document.title,
-      text: document.body?.innerText ?? "",
+      text: document.body?.innerText.slice(0, 6_000) ?? "",
       elements,
       viewport: {
         canScrollUp: scrollY > 0,
@@ -194,6 +194,7 @@ class PlaywrightInteractiveSession implements InteractiveBrowserSession {
       const body = new URLSearchParams(formEvidence.fields.map(({ name, value }) =>
         [name, value.replace(/\r\n|\r|\n/g, "\r\n")])).toString();
       this.policy.approveSubmission({ method: "POST", url: formEvidence.action, body });
+      let submitEvaluationFailed = false;
       try {
         await submitter.evaluate((element, expected) => {
           if (!(element instanceof HTMLButtonElement || element instanceof HTMLInputElement)) throw new Error("Submitter changed");
@@ -205,11 +206,11 @@ class PlaywrightInteractiveSession implements InteractiveBrowserSession {
           if (JSON.stringify(fields) !== JSON.stringify(expected.fields.map(({ name, value }) => [name, value]))) throw new Error("Form fields changed");
           HTMLFormElement.prototype.submit.call(form);
         }, formEvidence);
-      } catch (error) {
-        if (this.policy.submissionResult() === "not_attempted") throw error;
+      } catch {
+        submitEvaluationFailed = true;
       }
-      const status = await this.policy.waitForSubmissionResult();
-      if (status === "not_attempted") throw new Error("Approved form submission did not start");
+      const observed = await this.policy.waitForSubmissionResult(submitEvaluationFailed ? 2_000 : 15_000);
+      const status = observed === "not_attempted" ? "outcome_unknown" : observed;
       if (status === "submitted") {
         await this.page.waitForURL(formEvidence.action, { waitUntil: "domcontentloaded", timeout: 5_000 }).catch(() => undefined);
       }

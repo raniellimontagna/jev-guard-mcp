@@ -8,7 +8,7 @@ import type {
 import { safeValueKey } from "./snapshot.js";
 
 export interface InteractiveApi {
-  open(request: InteractiveOpenRequest): Promise<{ sessionId: string; status: "ready" | "manual_login_pending"; expiresAt: string }>;
+  open(request: InteractiveOpenRequest): Promise<{ sessionId: string; status: "ready" | "manual_login_pending"; expiresAt: string; privacyNotice?: string }>;
   preview(sessionId: string): Promise<InteractivePreviewResult>;
   execute(token: string): Promise<InteractiveExecuteResult>;
   cancel(token: string): Promise<{ status: "cancelled" }>;

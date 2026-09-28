@@ -1,6 +1,7 @@
 import { validateStartUrl } from "../security/url-policy.js";
 import { assertPublicHostname } from "../security/url-policy.js";
 import type { BrowserContext, Page, Route } from "playwright";
+import { safeInteractivePath } from "./snapshot.js";
 
 export interface InteractiveOrigins {
   siteOrigin: string;
@@ -80,6 +81,7 @@ export class InteractiveNetworkPolicy {
     }
 
     if (method !== "GET" && method !== "HEAD") return false;
+    if (!safeInteractivePath(url.pathname)) return false;
     if (isDocument) {
       if (url.origin !== this.siteOrigin || url.href !== this.#expectedDocument) return false;
       this.#expectedDocument = undefined;

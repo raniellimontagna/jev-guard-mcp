@@ -173,7 +173,7 @@ export class InteractiveSessionService {
     this.#maxModelCalls = options.maxModelCalls ?? 25;
   }
 
-  async open(request: InteractiveOpenRequest): Promise<{ sessionId: string; status: "ready" | "manual_login_pending"; expiresAt: string }> {
+  async open(request: InteractiveOpenRequest): Promise<{ sessionId: string; status: "ready" | "manual_login_pending"; expiresAt: string; privacyNotice?: string }> {
     if (this.#closed) throw new Error("Interactive browser is closed");
     if (request.mode === "auth" && request.shareRedactedPageTextWithTypeSafe !== true) {
       throw new Error("Authenticated browsing requires page-text sharing opt-in");
@@ -219,7 +219,14 @@ export class InteractiveSessionService {
       pending: undefined,
     };
     this.#sessions.set(sessionId, session);
-    return { sessionId, status: session.manualLoginPending ? "manual_login_pending" : "ready", expiresAt: new Date(expiresAt).toISOString() };
+    return {
+      sessionId,
+      status: session.manualLoginPending ? "manual_login_pending" : "ready",
+      expiresAt: new Date(expiresAt).toISOString(),
+      ...(session.manualLoginPending ? {
+        privacyNotice: "After manual login, redacted visible page text is sent to TypeSafe; redaction is best-effort and may leave private content.",
+      } : {}),
+    };
   }
 
   async preview(sessionId: string): Promise<InteractivePreviewResult> {

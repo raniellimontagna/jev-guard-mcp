@@ -122,8 +122,8 @@
 
 **Files:** Add `test/interactive-e2e.test.ts` only if the earlier fixture tests do not cover the full preview → execute → preview sequence. Update the plan checkboxes and docs only for verified behavior.
 
-- [ ] Run the complete synthetic public reading and manual-login form workflows with an injected Jev transport. Verify every action has a preview and one consumed token.
-- [ ] Verify that popup windows close, downloads are cancelled and WebSockets cannot connect in the assembled Playwright context.
-- [ ] Run `npm test`, `npm run typecheck`, `npm run build`, `npm audit --omit=dev`, `git diff --check`, and a local MCP handshake. Record exact pass/fail counts.
-- [ ] Review the specification line by line against code and tests. Mark unsupported sites/actions honestly in README and threat model.
-- [ ] Confirm no real form was sent, no secret appeared in test output or Git diff, no global MCP config changed, and the working tree contains only intentional files. Commit final verification/docs changes if any.
+- [x] Run complete synthetic public reading and manual-login form workflows with an injected Jev transport. Each action has a preview and one consumed token.
+- [x] Verify popup windows close, downloads fail and WebSockets cannot connect in the assembled Playwright context.
+- [x] Run `npm test` (119 pass, 0 fail), `npm run typecheck`, `npm run build`, `npm audit --omit=dev` (0 vulnerabilities), `git diff --check`, and a local MCP handshake (8 registered tools); all passed on 2026-09-28.
+- [x] Review the specification against code and tests. README and threat model identify JavaScript-managed forms, site-specific effects and real-site activation as unsupported without a reviewed policy.
+- [x] Confirm no real form was sent, no real secret appeared in test output or Git diff, no global MCP config changed, and the working tree contains only intentional feature files. Commit final verification/docs changes.

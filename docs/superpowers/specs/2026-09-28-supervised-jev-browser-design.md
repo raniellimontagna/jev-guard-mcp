@@ -1,7 +1,7 @@
 # Supervised Jev browser mode
 
 **Date:** 2026-09-28
-**Status:** Written specification for user review
+**Status:** Approved; implemented locally on the feature branch
 **Target branch:** `codex/jev-browser-integration`
 
 ## Objective
@@ -74,3 +74,7 @@ The browser network policy cannot prove that a remote GET or a site's JavaScript
 - No real authenticated site or external form is submitted in automated or live verification. A real-site pilot requires a named site, a reviewed origin policy and the user's approval of each actual action.
 
 The change is delivered on the feature branch for review. Publishing, pushing, changing the global Codex MCP registration and sending a real form are separate actions.
+
+## Implementation notes
+
+The first implementation handles native URL-encoded HTML POST forms. It does not include a reviewed site adapter for JavaScript-managed forms. The preview's source URL omits query strings to avoid disclosing URL tokens in MCP results; the full URL remains private for freshness checks. The authenticated open result includes a privacy notice about best-effort redaction. A 2xx response confirms HTTP receipt only; the form session closes after its one attempt, so any business outcome still requires independent observation.
