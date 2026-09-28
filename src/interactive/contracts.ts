@@ -12,6 +12,10 @@ export interface FormEvidence {
   action: string;
   method: string;
   hasFileInput: boolean;
+  enctype?: string;
+  target?: string;
+  submitterName?: string;
+  hasSubmitterOverrides?: boolean;
   fields: FormField[];
 }
 

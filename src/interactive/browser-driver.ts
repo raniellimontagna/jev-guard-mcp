@@ -57,6 +57,10 @@ export async function observeInteractivePage(page: Page): Promise<RawInteractive
           action: form.action,
           method: form.method,
           hasFileInput: form.querySelector('input[type="file"]') !== null,
+          enctype: form.enctype,
+          target: form.target,
+          submitterName: element.name,
+          hasSubmitterOverrides: ["formaction", "formmethod", "formenctype", "formtarget"].some((name) => element.hasAttribute(name)),
           fields,
         } };
       }
@@ -150,7 +154,7 @@ class PlaywrightInteractiveSession implements InteractiveBrowserSession {
     return true;
   }
 
-  async execute(candidate: ActionCandidate): Promise<BrowserExecutionResult> {
+  async execute(candidate: ActionCandidate, value?: string): Promise<BrowserExecutionResult> {
     if (this.#closed) throw new Error("Interactive browser session is closed");
     const fresh = await this.snapshot();
     const current = fresh.candidates.find(({ id }) => id === candidate.id);
@@ -163,6 +167,53 @@ class PlaywrightInteractiveSession implements InteractiveBrowserSession {
     if (candidate.kind === "wait") {
       await this.page.waitForTimeout(250);
       return { status: "acted", snapshot: await this.snapshot() };
+    }
+    if (candidate.kind === "fill" || candidate.kind === "select") {
+      if (value === undefined) throw new Error("Approved field value is missing");
+      this.policy.lockAfterValue();
+      const control = this.page.locator(INTERACTIVE_SELECTOR).nth(candidate.domIndex);
+      if (candidate.kind === "fill") await control.fill(value, { timeout: 10_000 });
+      else await control.selectOption(value, { timeout: 10_000 });
+      return { status: "acted", snapshot: await this.snapshot() };
+    }
+    if (candidate.kind === "submit") {
+      const formEvidence = candidate.form;
+      if (!formEvidence) throw new Error("Form evidence is missing");
+      this.policy.lockAfterValue();
+      const submitter = this.page.locator(INTERACTIVE_SELECTOR).nth(candidate.domIndex);
+      const valid = await submitter.evaluate((element, expected) => {
+        if (!(element instanceof HTMLButtonElement || element instanceof HTMLInputElement)) return false;
+        const form = element.form;
+        if (!form || form.action !== expected.action || form.method.toUpperCase() !== "POST"
+          || form.enctype !== "application/x-www-form-urlencoded" || !["", "_self"].includes(form.target)
+          || element.name !== "" || ["formaction", "formmethod", "formenctype", "formtarget"].some((name) => element.hasAttribute(name))) return false;
+        const fields = Array.from(new FormData(form).entries()).map(([name, field]) => [name, typeof field === "string" ? field : field.name]);
+        return JSON.stringify(fields) === JSON.stringify(expected.fields.map(({ name, value }) => [name, value])) && form.checkValidity();
+      }, formEvidence);
+      if (!valid) throw new Error("Form changed or failed validation");
+      const body = new URLSearchParams(formEvidence.fields.map(({ name, value }) =>
+        [name, value.replace(/\r\n|\r|\n/g, "\r\n")])).toString();
+      this.policy.approveSubmission({ method: "POST", url: formEvidence.action, body });
+      try {
+        await submitter.evaluate((element, expected) => {
+          if (!(element instanceof HTMLButtonElement || element instanceof HTMLInputElement)) throw new Error("Submitter changed");
+          const form = element.form;
+          if (!form || form.action !== expected.action || form.method.toUpperCase() !== "POST"
+            || form.enctype !== "application/x-www-form-urlencoded" || !["", "_self"].includes(form.target)
+            || element.name !== "" || ["formaction", "formmethod", "formenctype", "formtarget"].some((name) => element.hasAttribute(name))) throw new Error("Form changed");
+          const fields = Array.from(new FormData(form).entries()).map(([name, field]) => [name, typeof field === "string" ? field : field.name]);
+          if (JSON.stringify(fields) !== JSON.stringify(expected.fields.map(({ name, value }) => [name, value]))) throw new Error("Form fields changed");
+          HTMLFormElement.prototype.submit.call(form);
+        }, formEvidence);
+      } catch (error) {
+        if (this.policy.submissionResult() === "not_attempted") throw error;
+      }
+      const status = await this.policy.waitForSubmissionResult();
+      if (status === "not_attempted") throw new Error("Approved form submission did not start");
+      if (status === "submitted") {
+        await this.page.waitForURL(formEvidence.action, { waitUntil: "domcontentloaded", timeout: 5_000 }).catch(() => undefined);
+      }
+      return { status, snapshot: await this.snapshot().catch(() => fresh) };
     }
     if (candidate.kind !== "navigate" && candidate.kind !== "toggle") throw new Error("Interactive action is not supported yet");
     if (candidate.kind === "navigate") this.policy.approveDocument(candidate.destination);

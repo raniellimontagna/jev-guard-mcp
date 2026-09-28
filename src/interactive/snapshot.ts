@@ -15,6 +15,7 @@ import type {
 const MAX_CANDIDATES = 80;
 const RISKY_PATH = /(?:^|[\/_\-.])(logout|signout|unsubscribe|delete|remove|destroy|checkout|purchase|payment|download|export|oauth|authorize|login|signin|signup|register|confirm)(?:$|[\/_\-.])/i;
 const CREDENTIAL_KEY = /(?:^|_)(?:password|passwd|passcode|otp|totp|secret|token|api_key|pin|cookie|session)(?:_|$)/i;
+const FILLABLE_TYPE = /^(text|email|tel|search|url|number|textarea)$/i;
 
 function decodedPath(pathname: string): string | undefined {
   let current = pathname;
@@ -30,7 +31,7 @@ function decodedPath(pathname: string): string | undefined {
   return /%[0-9a-f]{2}/i.test(current) ? undefined : current.normalize("NFKC");
 }
 
-function safeValueKey(key: string): boolean {
+export function safeValueKey(key: string): boolean {
   return /^[a-z][a-z0-9_]{0,49}$/.test(key) && !CREDENTIAL_KEY.test(key);
 }
 
@@ -47,7 +48,11 @@ function sameSiteUrl(raw: string, source: URL, siteOrigin: string): string | und
 }
 
 function validForm(form: FormEvidence | undefined, source: URL, siteOrigin: string): FormEvidence | undefined {
-  if (!form || form.method.toUpperCase() !== "POST" || form.hasFileInput) return undefined;
+  if (!form || form.method.toUpperCase() !== "POST" || form.hasFileInput
+    || form.hasSubmitterOverrides || (form.submitterName ?? "") !== ""
+    || !["", "_self"].includes(form.target ?? "")
+    || (form.enctype ?? "application/x-www-form-urlencoded") !== "application/x-www-form-urlencoded"
+    || form.fields.length > 100 || form.fields.some(({ name, value }) => name.length > 100 || value.length > 4096)) return undefined;
   if (form.fields.some((field) => CREDENTIAL_KEY.test(field.name) || /^(password|file)$/i.test(field.type ?? ""))) return undefined;
   const action = sameSiteUrl(form.action, source, siteOrigin);
   if (!action) return undefined;
@@ -55,6 +60,10 @@ function validForm(form: FormEvidence | undefined, source: URL, siteOrigin: stri
     action,
     method: "POST",
     hasFileInput: false,
+    enctype: "application/x-www-form-urlencoded",
+    target: "_self",
+    submitterName: "",
+    hasSubmitterOverrides: false,
     fields: form.fields.map((field) => ({ ...field })),
   };
 }
@@ -72,6 +81,8 @@ function fingerprint(sourceUrl: string, candidate: Omit<ActionCandidate, "id" | 
       candidate.fieldName ?? null,
       candidate.fieldType ?? null,
       candidate.form?.fields.map(({ name, value, hidden, type }) => [name, value, hidden, type ?? null]) ?? null,
+      candidate.form?.enctype ?? null,
+      candidate.form?.target ?? null,
     ]))
     .digest("hex");
 }
@@ -110,7 +121,8 @@ export function buildInteractiveSnapshot(
       if (target) add(element, "navigate", target);
     } else if (element.kind === "button" && element.buttonEffect) {
       add(element, "toggle", source.href);
-    } else if ((element.kind === "field" || element.kind === "select") && element.name && !/^(password|hidden|file)$/i.test(element.fieldType ?? "") && !CREDENTIAL_KEY.test(element.name)) {
+    } else if ((element.kind === "field" || element.kind === "select") && element.name
+      && (element.kind === "select" || FILLABLE_TYPE.test(element.fieldType ?? "")) && !CREDENTIAL_KEY.test(element.name)) {
       for (const key of valueKeys) {
         if (safeValueKey(key)) add(element, element.kind === "select" ? "select" : "fill", source.href, key);
       }

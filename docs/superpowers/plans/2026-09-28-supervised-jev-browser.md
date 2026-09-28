@@ -102,10 +102,10 @@
 
 **Interfaces:** `open` stores only non-credential `values: Record<string,string>` in memory. `preview` reveals a selected exact value to the user, never to Jev. `execute` reports `submitted | outcome_unknown | acted`; no retry method exists.
 
-- [ ] Write failing synthetic-form tests for approval before fill, network lock after fill, exact method/destination/payload preview, hidden-field fingerprint changes, no file inputs, one authorized POST, blocked dynamic endpoint without code-owned site policy, and ambiguous response without a second POST.
-- [ ] Run `npm test -- test/interactive-form.test.ts`; expect the behavior assertions to fail.
-- [ ] Implement pre-fill approval and network lock, private form evidence, exact POST authorization, re-observation before submit and `outcome_unknown` for a request that may have reached the server without proof of completion.
-- [ ] Run focused tests, existing browser/service tests and typecheck; commit as `feat: gate form values and exact submissions`.
+- [x] Write failing synthetic-form tests for approval before fill, network lock after fill, exact method/destination/payload preview, hidden-field fingerprint changes, unsupported encodings and targets, no file inputs, one authorized POST, and ambiguous response without a second POST. Dynamic endpoint changes are rejected by the freshness fingerprint and the native form action check.
+- [x] Run `npm test -- test/interactive-form.test.ts`; observe the behavior assertions fail before implementation.
+- [x] Implement pre-fill approval and network lock, private form evidence, exact POST method, destination and body authorization, re-observation before submit and `outcome_unknown` for a request that may have reached the server without proof of completion.
+- [x] Run focused tests, existing browser/service tests and typecheck; commit as `feat: gate form values and exact submissions`.
 
 ### Task 7: MCP boundary and operator documentation
 

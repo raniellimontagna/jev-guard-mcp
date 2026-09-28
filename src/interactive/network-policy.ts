@@ -13,6 +13,7 @@ export interface NetworkRequest {
   method: string;
   resourceType: string;
   isMainFrame: boolean;
+  postData?: string | null;
 }
 
 type Phase = "opening" | "manual" | "supervised" | "locked" | "submission";
@@ -35,9 +36,11 @@ export class InteractiveNetworkPolicy {
   readonly resourceOrigins: ReadonlySet<string>;
   #phase: Phase;
   #expectedDocument: string | undefined;
-  #approvedSubmission: { method: "POST"; url: string } | undefined;
+  #approvedSubmission: { method: "POST"; url: string; body: string } | undefined;
   #submissionAttempted = false;
   #submissionStatus: number | undefined;
+  #submissionSettled = false;
+  readonly #submissionWaiters = new Set<() => void>();
 
   constructor(origins: InteractiveOrigins, mode: "public" | "auth", startUrl: string) {
     this.siteOrigin = exactOrigin(origins.siteOrigin);
@@ -59,10 +62,12 @@ export class InteractiveNetworkPolicy {
 
     if (this.#phase === "submission") {
       const approved = this.#approvedSubmission;
-      if (!approved || method !== approved.method || url.href !== approved.url || url.origin !== this.siteOrigin) return false;
+      if (!approved || method !== approved.method || url.href !== approved.url || url.origin !== this.siteOrigin
+        || !isDocument || !request.isMainFrame || (request.postData ?? "") !== approved.body) return false;
       this.#approvedSubmission = undefined;
       this.#submissionAttempted = true;
       this.#submissionStatus = undefined;
+      this.#submissionSettled = false;
       this.#phase = "locked";
       return true;
     }
@@ -112,19 +117,41 @@ export class InteractiveNetworkPolicy {
     this.#expectedDocument = undefined;
   }
 
-  approveSubmission(input: { method: string; url: string }): void {
+  approveSubmission(input: { method: string; url: string; body: string }): void {
     if (this.#phase !== "supervised" && this.#phase !== "locked") throw new Error("Submission cannot be approved in this phase");
     if (input.method.toUpperCase() !== "POST") throw new Error("Only POST submissions are supported");
     const url = exactUrl(input.url);
     if (url.origin !== this.siteOrigin) throw new Error("Submission must stay on site origin");
-    this.#approvedSubmission = { method: "POST", url: url.href };
+    this.#approvedSubmission = { method: "POST", url: url.href, body: input.body };
     this.#submissionAttempted = false;
     this.#submissionStatus = undefined;
+    this.#submissionSettled = false;
     this.#phase = "submission";
   }
 
   recordSubmissionResponse(status: number): void {
-    if (this.#submissionAttempted) this.#submissionStatus = status;
+    if (this.#submissionAttempted) {
+      this.#submissionStatus = status;
+      this.#submissionSettled = true;
+      for (const wake of this.#submissionWaiters) wake();
+    }
+  }
+
+  recordSubmissionFailure(): void {
+    if (this.#submissionAttempted) {
+      this.#submissionSettled = true;
+      for (const wake of this.#submissionWaiters) wake();
+    }
+  }
+
+  async waitForSubmissionResult(timeoutMs = 15_000): Promise<"not_attempted" | "submitted" | "outcome_unknown"> {
+    if (this.#submissionSettled) return this.submissionResult();
+    await new Promise<void>((resolve) => {
+      const wake = () => { clearTimeout(timer); this.#submissionWaiters.delete(wake); resolve(); };
+      const timer = setTimeout(wake, timeoutMs);
+      this.#submissionWaiters.add(wake);
+    });
+    return this.submissionResult();
   }
 
   submissionResult(): "not_attempted" | "submitted" | "outcome_unknown" {
@@ -149,6 +176,7 @@ export async function installInteractiveNetworkPolicy(
         method: request.method(),
         resourceType: request.resourceType(),
         isMainFrame: request.frame() === page.mainFrame(),
+        postData: request.postData(),
       });
       if (!approved) {
         await route.abort("blockedbyclient");
@@ -168,6 +196,7 @@ export async function installInteractiveNetworkPolicy(
         await response.dispose();
       }
     } catch {
+      if (route.request().method().toUpperCase() === "POST") policy.recordSubmissionFailure();
       await route.abort("blockedbyclient").catch(() => undefined);
     }
   });

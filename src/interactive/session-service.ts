@@ -6,6 +6,7 @@ import type { InteractiveBrowserSession, InteractiveOpenOptions, BrowserExecutio
 import type { ActionCandidate, InteractiveSnapshot } from "./contracts.js";
 import type { InteractiveDecision, InteractiveDecisionInput } from "./decision.js";
 import type { InteractiveOrigins } from "./network-policy.js";
+import { safeValueKey } from "./snapshot.js";
 
 export interface InteractiveOpenRequest {
   url: string;
@@ -52,7 +53,12 @@ export type InteractivePreviewResult =
       expiresAt: string;
       sourceUrl: string;
       confidence: number;
-      action: { id: string; kind: ActionCandidate["kind"]; label: string; destination: string };
+      action: {
+        id: string; kind: ActionCandidate["kind"]; label: string; destination: string;
+        value?: string;
+        method?: "POST";
+        fields?: Array<{ name: string; value: string }>;
+      };
       usage: DecisionUsage;
     };
 
@@ -87,6 +93,47 @@ function randomId(): string { return randomBytes(32).toString("base64url"); }
 
 function actionSummary(candidate: ActionCandidate) {
   return { id: candidate.id, kind: candidate.kind, label: candidate.label, destination: candidate.destination };
+}
+
+function previewAction(candidate: ActionCandidate, values: Record<string, string>) {
+  const summary = actionSummary(candidate);
+  if (candidate.kind === "fill" || candidate.kind === "select") {
+    if (!candidate.valueKey || !Object.hasOwn(values, candidate.valueKey)) throw new Error("Interactive value key is unavailable");
+    const value = values[candidate.valueKey];
+    if (value === undefined) throw new Error("Interactive value key is unavailable");
+    return { ...summary, value };
+  }
+  if (candidate.kind === "submit") {
+    if (!candidate.form) throw new Error("Interactive form evidence is unavailable");
+    return {
+      ...summary,
+      method: "POST" as const,
+      fields: candidate.form.fields.map(({ name, value, hidden }) => ({ name, value: hidden ? "[HIDDEN]" : value })),
+    };
+  }
+  return summary;
+}
+
+function redactKnownValues(value: string, values: Record<string, string>): string {
+  let result = value;
+  for (const privateValue of Object.values(values).sort((a, b) => b.length - a.length)) {
+    if (privateValue) result = result.split(privateValue).join("[REDACTED_VALUE]");
+  }
+  return result;
+}
+
+function modelSafeSnapshot(snapshot: InteractiveSnapshot, values: Record<string, string>): InteractiveSnapshot {
+  return {
+    ...snapshot,
+    publicUrl: redactKnownValues(snapshot.publicUrl, values),
+    title: redactKnownValues(snapshot.title, values),
+    modelText: redactKnownValues(snapshot.modelText, values),
+    modelActions: snapshot.modelActions.map((action) => ({
+      ...action,
+      label: redactKnownValues(action.label, values),
+      destination: redactKnownValues(action.destination, values),
+    })),
+  };
 }
 
 function verified(snapshot: InteractiveSnapshot, expected?: { kind: "url" | "text"; value: string }): boolean {
@@ -133,6 +180,10 @@ export class InteractiveSessionService {
     }
     const goal = request.goal.trim();
     if (!goal) throw new Error("Goal must not be empty");
+    if (Object.keys(request.values).length > 20 || Object.entries(request.values).some(([key, value]) =>
+      !safeValueKey(key) || typeof value !== "string" || value.length > 1_000 || value.includes("\0"))) {
+      throw new Error("Interactive values are invalid or credential-like");
+    }
     if (this.#sessions.size + this.#openings.size >= this.#maxSessions) throw new Error("Interactive session capacity exceeded");
     const opening = this.driver.open({
       url: request.url,
@@ -192,7 +243,11 @@ export class InteractiveSessionService {
       const snapshot = await session.browser.snapshot();
       this.#assertActive(session);
       session.modelCalls += 1;
-      const decision = await this.jev.choose({ goal: session.goal, snapshot, valueKeys: Object.keys(session.values) });
+      const decision = await this.jev.choose({
+        goal: redactKnownValues(session.goal, session.values),
+        snapshot: modelSafeSnapshot(snapshot, session.values),
+        valueKeys: Object.keys(session.values),
+      });
       this.#assertActive(session);
       if (decision.status !== "ready") {
         const status = decision.status === "done"
@@ -205,10 +260,7 @@ export class InteractiveSessionService {
       if (!candidate || candidate.fingerprint !== decision.candidate.fingerprint) {
         throw new Error("Jev selected an action outside the observed page");
       }
-      if (candidate.kind === "fill" || candidate.kind === "select" || candidate.kind === "submit") {
-        await this.closeSession(sessionId);
-        return { status: "blocked", confidence: decision.confidence, choice: decision.choice, usage: decision.usage };
-      }
+      const action = previewAction(candidate, session.values);
       let token = this.#tokenFactory();
       while (this.#tokens.has(token)) token = this.#tokenFactory();
       const expiresAt = this.#now() + this.#tokenTtlMs;
@@ -223,7 +275,7 @@ export class InteractiveSessionService {
         expiresAt: new Date(expiresAt).toISOString(),
         sourceUrl: snapshot.publicUrl,
         confidence: decision.confidence,
-        action: actionSummary(candidate),
+        action,
         usage: decision.usage,
       };
     } catch (error) {
@@ -253,15 +305,22 @@ export class InteractiveSessionService {
         throw new Error("Interactive preview is stale");
       }
       session.actions += 1;
-      const result = await session.browser.execute(action);
+      const value = action.valueKey ? session.values[action.valueKey] : undefined;
+      const result = await session.browser.execute(action, value);
       this.#assertActive(session);
-      return {
+      const output: InteractiveExecuteResult = {
         status: result.status,
         sessionId,
         action: actionSummary(action),
-        page: { url: result.snapshot.publicUrl, title: result.snapshot.title, text: result.snapshot.modelText },
+        page: {
+          url: redactKnownValues(result.snapshot.publicUrl, session.values),
+          title: redactKnownValues(result.snapshot.title, session.values),
+          text: redactKnownValues(result.snapshot.modelText, session.values),
+        },
         usage: pending.usage,
       };
+      if (action.kind === "submit") await this.closeSession(sessionId);
+      return output;
     } catch (error) {
       if (this.#sessions.has(sessionId)) await this.closeSession(sessionId);
       throw error;

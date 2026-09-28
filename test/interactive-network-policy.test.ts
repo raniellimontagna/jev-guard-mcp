@@ -39,9 +39,11 @@ test("fill locks all requests and approved POST is single-use", () => {
   policy.lockAfterValue();
   assert.equal(policy.allow({ url: "https://example.com/collect?value=secret", method: "GET", resourceType: "image", isMainFrame: false }), false);
   assert.equal(policy.allow({ url: "https://example.com/api", method: "POST", resourceType: "fetch", isMainFrame: false }), false);
-  policy.approveSubmission({ method: "POST", url: "https://example.com/send" });
+  policy.approveSubmission({ method: "POST", url: "https://example.com/send", body: "message=Hello" });
   assert.equal(policy.allow({ url: "https://example.com/send?extra=x", method: "POST", resourceType: "document", isMainFrame: true }), false);
-  assert.equal(policy.allow({ url: "https://example.com/send", method: "POST", resourceType: "document", isMainFrame: true }), true);
+  assert.equal(policy.allow({ url: "https://example.com/send", method: "POST", resourceType: "fetch", isMainFrame: true, postData: "message=Hello" }), false);
+  assert.equal(policy.allow({ url: "https://example.com/send", method: "POST", resourceType: "document", isMainFrame: true, postData: "message=Wrong" }), false);
+  assert.equal(policy.allow({ url: "https://example.com/send", method: "POST", resourceType: "document", isMainFrame: true, postData: "message=Hello" }), true);
   assert.equal(policy.allow({ url: "https://example.com/send", method: "POST", resourceType: "document", isMainFrame: true }), false);
   assert.equal(policy.submissionResult(), "outcome_unknown");
   policy.recordSubmissionResponse(200);
@@ -130,9 +132,9 @@ test("route interceptor aborts unapproved POST before fetch and uses zero redire
   assert.ok(handler);
 
   const calls: string[] = [];
-  function route(url: string, status = 200): Route {
+  function route(url: string, status = 200, resourceType = "document"): Route {
     return {
-      request: () => ({ url: () => url, method: () => "POST", resourceType: () => "fetch", frame: () => mainFrame }),
+      request: () => ({ url: () => url, method: () => "POST", resourceType: () => resourceType, frame: () => mainFrame, postData: () => "message=Hello" }),
       abort: async () => { calls.push("abort"); },
       fetch: async (options: { maxRedirects: number }) => {
         calls.push(`fetch:${options.maxRedirects}`);
@@ -144,10 +146,12 @@ test("route interceptor aborts unapproved POST before fetch and uses zero redire
 
   await handler(route("https://example.com/send"));
   assert.deepEqual(calls, ["abort"]);
-  policy.approveSubmission({ method: "POST", url: "https://example.com/send" });
+  policy.approveSubmission({ method: "POST", url: "https://example.com/send", body: "message=Hello" });
+  await handler(route("https://example.com/send", 200, "fetch"));
+  assert.deepEqual(calls, ["abort", "abort"]);
   await handler(route("https://example.com/send", 302));
-  assert.deepEqual(calls, ["abort", "fetch:0", "abort"]);
+  assert.deepEqual(calls, ["abort", "abort", "fetch:0", "abort"]);
   assert.equal(policy.submissionResult(), "outcome_unknown");
   await handler(route("https://example.com/send"));
-  assert.deepEqual(calls, ["abort", "fetch:0", "abort", "abort"]);
+  assert.deepEqual(calls, ["abort", "abort", "fetch:0", "abort", "abort"]);
 });
