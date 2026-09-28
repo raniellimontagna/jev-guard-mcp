@@ -6,7 +6,7 @@ import type { Decision, DecisionInput, JevClient } from "./jev-client.js";
 export const JEV_MODEL = "jev-1.13.0";
 export const MIN_CONFIDENCE = 0.8;
 
-interface ChoiceAnswer {
+export interface ChoiceAnswer {
   type: "choice";
   choice: string;
   confidence: number;
@@ -38,7 +38,7 @@ export interface JevMetrics {
   attempts: number;
 }
 
-function validateAnswer(answer: ChoiceAnswer, offered: ReadonlySet<string>): void {
+export function validateAnswer(answer: ChoiceAnswer, offered: ReadonlySet<string>): void {
   if (answer.type !== "choice" || !offered.has(answer.choice)) {
     throw new Error("Jev answer is outside the offered action set");
   }
