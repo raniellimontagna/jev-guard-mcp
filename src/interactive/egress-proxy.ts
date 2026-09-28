@@ -51,6 +51,7 @@ export class EgressProxy {
     const sockets = new Set<Duplex>();
     server.on("connection", (socket) => {
       sockets.add(socket);
+      socket.on("error", () => socket.destroy());
       socket.once("close", () => sockets.delete(socket));
     });
     server.on("connect", (request, client, head) => {
@@ -74,7 +75,7 @@ export class EgressProxy {
           : connectTcp({ host: selected.address, family: selected.family, port: Number(target.port || 443) });
         sockets.add(remote);
         remote.once("close", () => sockets.delete(remote));
-        remote.once("error", () => {
+        remote.on("error", () => {
           reject(client, 502);
           remote.destroy();
         });
