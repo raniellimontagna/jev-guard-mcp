@@ -91,10 +91,10 @@
 
 **Interfaces:** `InteractiveSessionService.open(request)`, `preview(sessionId)`, `execute(token)`, `cancel(token)`, `closeSession(sessionId)`, `close()`; constructor injects `InteractiveBrowserDriver`, `InteractiveJevClient`, clock and token factory.
 
-- [ ] Write failing service tests with fake browser/model adapters for no action during preview, exact action/values display, token consumed before execution, stale page/form rejection, token reuse/expiry, session capacity, action/model/time budgets and concurrent shutdown.
-- [ ] Run `npm test -- test/interactive-session-service.test.ts`; expect missing implementation failure.
-- [ ] Implement session map and one pending token per session, 120-second timer, 15-minute session timer, two-session reservation before browser opening, 20-action and 25-call limits. Terminal decisions close sessions; `done` is `verified_done` only when the caller's exact URL or visible-text postcondition is observed.
-- [ ] Run focused tests and typecheck; commit as `feat: add supervised action previews and lifecycle`.
+- [x] Write failing service tests with fake browser/model adapters for no action during preview, exact action display, token consumed before execution, stale page rejection, token reuse/expiry, session capacity, action/model/time budgets and concurrent shutdown. Value display and form staleness are covered in Task 6.
+- [x] Run `npm test -- test/interactive-session-service.test.ts`; observe failing behavior before implementation.
+- [x] Implement session map and one pending token per session, 120-second timer, 15-minute session timer, two-session reservation before browser opening, 20-action and 25-call limits. Terminal decisions close sessions; `done` is `verified_done` only when the caller's exact URL or visible-text postcondition is observed.
+- [x] Run focused tests and typecheck; commit as `feat: add supervised action previews and lifecycle`.
 
 ### Task 6: Values and form outcome
 
