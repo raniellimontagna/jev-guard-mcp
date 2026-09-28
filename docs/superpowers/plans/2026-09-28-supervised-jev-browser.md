@@ -47,10 +47,10 @@
 
 **Interfaces:** `buildInteractiveSnapshot(raw: RawInteractivePage, policy: SitePolicy): InteractiveSnapshot`; each `ActionCandidate` has `{id, kind, label, destination, valueKey?, fingerprint}`. A snapshot keeps `modelText` separate from private form evidence.
 
-- [ ] Write tests first for visible same-origin links, disclosure buttons, fill/select fields, exact POST submit actions, and rejection of hidden, cross-origin, risky, download and unknown-effect controls. Assert candidate IDs and SHA-256 fingerprints are stable, while raw values, passwords and hidden fields never enter `modelText`.
-- [ ] Run `npm test -- test/interactive-snapshot.test.ts`; expect failure because the module is absent.
-- [ ] Implement the types and pure builder with at most 80 candidates and 3,000 redacted page-text characters. Form evidence includes all control names/values only in a private fingerprint and user preview, with hidden security fields redacted.
-- [ ] Run the focused test, `npm run typecheck` and `git diff --check`; expect all exit 0. Commit as `feat: model bounded interactive browser actions`.
+- [x] Write tests first for visible same-origin links, disclosure buttons, fill/select fields, exact POST submit actions, and rejection of hidden, cross-origin, risky, download and unknown-effect controls. Assert candidate IDs and SHA-256 fingerprints are stable, while raw values, passwords and hidden fields never enter `modelText`.
+- [x] Run `npm test -- test/interactive-snapshot.test.ts`; expect failure because the module is absent.
+- [x] Implement the types and pure builder with at most 80 candidates and 3,000 redacted page-text characters. Form evidence stays in private candidate data and its fingerprint; Task 6 will redact hidden values from user previews.
+- [x] Run the focused test, `npm run typecheck` and `git diff --check`; expect all exit 0. Commit as `feat: model bounded interactive browser actions`.
 
 ### Task 2: Jev action decision
 
