@@ -118,7 +118,7 @@ const defaultLookup: Lookup = async (hostname) => {
   return addresses.map(({ address, family }) => ({ address, family: family === 6 ? 6 : 4 }));
 };
 
-export async function assertPublicHostname(hostname: string, lookup: Lookup = defaultLookup): Promise<void> {
+export async function resolvePublicAddresses(hostname: string, lookup: Lookup = defaultLookup): Promise<readonly LookupAddress[]> {
   assertSyntacticallyPublicHostname(hostname);
   const addresses = await lookup(hostname);
   if (addresses.length === 0) throw new Error("Hostname did not resolve");
@@ -127,4 +127,9 @@ export async function assertPublicHostname(hostname: string, lookup: Lookup = de
       throw new Error(`Hostname resolved to a non-public address: ${address}`);
     }
   }
+  return addresses;
+}
+
+export async function assertPublicHostname(hostname: string, lookup: Lookup = defaultLookup): Promise<void> {
+  await resolvePublicAddresses(hostname, lookup);
 }

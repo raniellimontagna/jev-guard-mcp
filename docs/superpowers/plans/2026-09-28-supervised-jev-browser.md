@@ -69,10 +69,10 @@
 
 **Interfaces:** `installInteractiveNetworkPolicy(context, page, origins, assertHost?)` returns `NetworkGate` with `enterSupervised()`, `lockAfterValue()`, `approveDocument(url)`, `approveSubmission({method,url})`, `submissionResult()` and `close()`.
 
-- [ ] Write failing tests for HTTPS/public DNS and exact origin checks; manual-login origins only before handoff; GET/HEAD-only supervised requests; no redirects to unknown destinations; blocked private hosts, subframes, downloads, popups and WebSockets. Include an actual browser redirect proving that Playwright does not re-intercept it, while the local CONNECT proxy blocks its unlisted or private target.
-- [ ] Run `npm test -- test/interactive-network-policy.test.ts`; expect missing implementation failure.
-- [ ] Implement a loopback-only CONNECT proxy that rejects plain HTTP requests, checks the exact allowed host/port and every resolved IP, connects only to a checked public IP and never logs destinations or data. Route Chrome through it. Implement request routing with `route.fetch({maxRedirects:0})`, checked origins and request methods. Supervised POST/PUT/PATCH/DELETE fail closed. After `lockAfterValue`, every request fails closed. `approveSubmission` allows at most one exact HTTPS POST and records whether it may have reached the server; no redirect is treated as confirmed success.
-- [ ] Add tests for two POST attempts, unexpected XHR on input/change, redirect after POST and ambiguous response. Run focused tests and typecheck; commit as `feat: enforce interactive browser network phases`.
+- [x] Write failing tests for HTTPS/public DNS and exact origin checks; manual-login origins only before handoff; GET/HEAD-only supervised requests; blocked private hosts and subframes. Test CONNECT refusal and pinning to the checked public IP. Task 4 covers browser popup, download, WebSocket and redirect integration.
+- [x] Run `npm test -- test/interactive-network-policy.test.ts`; expect missing implementation failure.
+- [x] Implement a loopback-only CONNECT proxy that rejects plain HTTP requests, checks the exact allowed host/port and every resolved IP, connects only to a checked public IP and never logs destinations or data. Route Chrome through it in Task 4. Implement request routing with `route.fetch({maxRedirects:0})`, checked origins and request methods. Supervised POST/PUT/PATCH/DELETE fail closed. After `lockAfterValue`, every request fails closed. `approveSubmission` allows at most one exact HTTPS POST and records whether it may have reached the server; no redirect is treated as confirmed success.
+- [x] Add tests for two POST attempts, redirect after POST and ambiguous response. Run focused tests and typecheck; commit as `feat: enforce interactive browser network phases`.
 
 ### Task 4: Playwright interaction adapter
 
@@ -80,7 +80,7 @@
 
 **Interfaces:** `InteractiveBrowserDriver.open(OpenBrowserOptions): Promise<InteractiveBrowserSession>`; session supports `snapshot()`, `finishManualLogin()`, `execute(candidate, value?)`, `close()`. Test constructor injection permits a fixture resolver and headless Chrome without weakening production defaults.
 
-- [ ] Write failing browser tests with a synthetic HTTPS page for DOM extraction, JavaScript-enabled disclosure/link actions, blocked popup/download, manual-login handoff and standard form submission.
+- [ ] Write failing browser tests with a synthetic HTTPS page for DOM extraction, JavaScript-enabled disclosure/link actions, blocked popup/download/WebSocket, manual-login handoff, browser redirects through the proxy and standard form submission.
 - [ ] Run `npm test -- test/interactive-browser-driver.test.ts`; expect missing implementation failure.
 - [ ] Implement fresh contexts with the existing minimal `browserEnvironment()`, `acceptDownloads:false`, `serviceWorkers:"block"` and `blockWebSockets()`. Auth opens headed Chrome; public opens headless. Use DOM actions only after candidate freshness is rechecked, enforce `siteOrigin`, and always close context/browser on failure.
 - [ ] Verify focused tests and typecheck; commit as `feat: add supervised Playwright sessions`.
