@@ -167,6 +167,18 @@ Registering the server is deliberately separate from cloning it. Review the secu
 
 The repository test suite covers both modes' URL policy, DNS/private-network rejection, redaction, candidate extraction, Jev response validation, token lifecycle, stale-page rejection, manual-login handoff, exact form POST, ambiguous submission outcome, shutdown and MCP schemas. Supervised browser tests use local synthetic HTTPS fixtures with an injected test proxy; they do not send real external forms.
 
+### Controlled chess demonstration
+
+Run a complete local game against a deliberately weak scripted bot to exercise the supervised browser with live Jev decisions:
+
+```bash
+npm run chess:demo
+```
+
+The script loads the TypeSafe key from macOS Keychain, serves an ephemeral HTTPS chess board on loopback, and maps `https://chess-demo.example` to that fixture only inside its isolated Playwright driver. The normal MCP public-host policy is unchanged. `chess.js` validates all moves. The bot opens with `f3`, Codex's demonstration plan is `...e5`, the bot plays `g4`, and Codex plans `...Qh4#`.
+
+Jev chooses the matching link among legal Black moves. For each choice, the terminal shows the exact source, label, destination and confidence; type `aprovar` only after reviewing it. A wrong choice, low confidence, missing approval or token expiry stops the game. The script checks `verified_done` and saves a screenshot under the ignored `artifacts/` directory. This tests browser action selection and approval, not chess-playing strength or an unrestricted Chess.com board.
+
 A public smoke test is available:
 
 ```bash

@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "chess:demo": "./scripts/chess-demo-from-keychain.sh",
     "smoke:live": "tsx scripts/smoke-live.ts",
     "test": "tsx --test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "22.20.4",
+    "chess.js": "1.4.0",
     "tsx": "4.23.15",
     "typescript": "7.0.2"
   }
