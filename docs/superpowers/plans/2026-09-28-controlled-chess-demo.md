@@ -28,7 +28,7 @@
 
 **Files:** Extend `scripts/chess-demo-site.ts`; create `scripts/chess-demo.ts`; extend `test/chess-demo.test.ts`.
 
-- [x] Write a Playwright/interactive-service test that follows `e7e5` and `d8h4` with a deterministic Jev transport, verifies only GETs, and reaches `verified_done`.
+- [x] Write a Playwright/interactive-service test that follows `e7e5` and `d8h4` with a deterministic Jev transport, verifies only GETs, and observes exact checkmate text after the second action.
 - [x] Run the focused test and confirm it fails before the driver harness exists.
 - [x] Implement disposable local TLS server and demo-only proxy/hostname injection; keep the normal driver and network policy intact.
 - [x] Run the focused test, full `npm test`, `npm run typecheck`, `npm run build`, and `npm audit --omit=dev`.
@@ -38,5 +38,5 @@
 **Files:** `scripts/chess-demo.ts`, `package.json`, and `README.md`.
 
 - [x] Implement an interactive CLI that uses the existing Keychain-backed TypeSafe key, never prints its value or the preview token, and waits for explicit approval for each exact proposed move.
-- [ ] Start the CLI, inspect each live preview, obtain user approval per action, then execute and verify the terminal result.
-- [ ] Capture the resulting board and report live Jev confidence, action sequence, test results, and any limitation accurately.
+- [x] Start the CLI, inspect each live preview, use the user's explicit approval for the bounded game, then execute and verify the terminal result.
+- [x] Capture the resulting board and report live Jev confidence, action sequence, test results, and any limitation accurately.

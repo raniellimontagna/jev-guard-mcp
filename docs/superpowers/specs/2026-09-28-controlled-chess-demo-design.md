@@ -14,7 +14,7 @@ The demonstration runs only in a disposable local HTTPS fixture. Its test-only d
 
 ## Browser flow
 
-The demonstration invokes the real `InteractiveSessionService`, `InteractiveBrowserDriver`, and TypeSafe transport. Jev sees the board text and code-owned move links, then chooses one action ID. The CLI shows source URL, move label, destination, and confidence without printing the approval token. It waits for explicit human approval for each move. Low confidence, a wrong proposed move, timeout, or other ambiguous result stops the run. After the final move, a further Jev preview must report `verified_done` against the exact checkmate text.
+The demonstration invokes the real `InteractiveSessionService`, `InteractiveBrowserDriver`, and TypeSafe transport. Jev sees the board text and code-owned move links, then chooses one action ID. The CLI shows source URL, move label, destination, and confidence without printing the approval token. It waits for explicit human approval for each move; a trusted operator may provide it when the user has authorized the whole bounded game. Low confidence, a wrong proposed move, timeout, or other ambiguous result stops the run. After the final move, code verifies the exact URL and visible checkmate text returned by the browser instead of requesting a third Jev decision about an already observed result.
 
 ## Verification
 

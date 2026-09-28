@@ -25,6 +25,7 @@ async function main(): Promise<void> {
       origins: { siteOrigin: harness.origin, authOrigins: [], resourceOrigins: [] },
       values: {}, expectedResult: { kind: "text", value: "Jev venceu por xeque-mate" },
     });
+    let finalPageText = "";
     for (const path of plannedPaths) {
       const preview = await service.preview(opened.sessionId);
       if (preview.status !== "ready") {
@@ -63,15 +64,15 @@ async function main(): Promise<void> {
         process.exitCode = 1;
         return;
       }
+      if (path === plannedPaths[plannedPaths.length - 1]) finalPageText = result.page.text;
     }
     const directory = join(process.cwd(), "artifacts");
     await mkdir(directory, { recursive: true });
     const screenshotPath = join(directory, "chess-demo-final.png");
     await harness.screenshot(screenshotPath);
-    const done = await service.preview(opened.sessionId);
-    console.log(JSON.stringify({ phase: "result", status: done.status,
-      ...(done.status !== "login_required" ? { confidence: done.confidence } : {}) }, null, 2));
-    if (done.status !== "verified_done") {
+    const verified = finalPageText.includes("Jev venceu por xeque-mate");
+    console.log(JSON.stringify({ phase: "result", status: verified ? "verified_checkmate" : "unverified" }, null, 2));
+    if (!verified) {
       process.exitCode = 1;
       return;
     }

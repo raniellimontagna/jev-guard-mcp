@@ -29,6 +29,7 @@ test("move URLs recompute the bot reply and final checkmate without state mutati
   assert.equal(terminal.status, 200);
   assert.match(terminal.html, /Jev venceu por xeque-mate/);
   assert.doesNotMatch(terminal.html, /class="legal-move"/);
+  assert.doesNotMatch(terminal.html, /<a\s/);
 });
 
 test("controlled chess page rejects illegal and extra moves", () => {
@@ -40,7 +41,9 @@ test("controlled chess page rejects illegal and extra moves", () => {
 test("guarded browser plays both legal moves against the local bot with verified checkmate", async () => {
   const harness = await startChessDemoHarness();
   const origins = { siteOrigin: harness.origin, authOrigins: [], resourceOrigins: [] };
+  let modelCalls = 0;
   const transport: JevTransport = async (request) => {
+    modelCalls += 1;
     const expectedPath = request.state.page.url.endsWith("/game") ? "/game/e7e5"
       : request.state.page.url.endsWith("/game/e7e5") ? "/game/e7e5/d8h4" : "";
     const actions = request.state.actions;
@@ -65,6 +68,7 @@ test("guarded browser plays both legal moves against the local bot with verified
       mode: "public", origins, values: {},
       expectedResult: { kind: "text", value: "Jev venceu por xeque-mate" },
     });
+    let finalPageText = "";
     for (const path of ["/game/e7e5", "/game/e7e5/d8h4"]) {
       const preview = await service.preview(opened.sessionId);
       assert.equal(preview.status, "ready");
@@ -74,9 +78,10 @@ test("guarded browser plays both legal moves against the local bot with verified
       const executed = await service.execute(preview.token);
       assert.equal(executed.status, "acted");
       assert.equal(executed.page.url, `${harness.origin}${path}`);
+      if (path.endsWith("/d8h4")) finalPageText = executed.page.text;
     }
-    const done = await service.preview(opened.sessionId);
-    assert.equal(done.status, "verified_done");
+    assert.match(finalPageText, /Jev venceu por xeque-mate/);
+    assert.equal(modelCalls, 2);
     assert.deepEqual(harness.requests, ["GET /game", "GET /game/e7e5", "GET /game/e7e5/d8h4"]);
   } finally {
     await service.close();

@@ -69,7 +69,6 @@ function renderHistory(game: Chess): string {
 
 function renderMoves(game: Chess, blackMoves: string[]): string {
   const prefix = `/game${blackMoves.map((move) => `/${move}`).join("")}`;
-  if (game.isGameOver()) return `<a class="review-result" href="${prefix}">Ver resultado da partida</a>`;
   return game.moves({ verbose: true }).map((move) =>
     `<a class="legal-move" href="${prefix}/${token(move)}">${move.from} para ${move.to} (${escapeHtml(move.san)})</a>`).join("");
 }
@@ -101,7 +100,7 @@ export function renderChessPage(pathname: string): { status: number; html: strin
 <h1>Jev contra Bot</h1><p>Partida local e sem rating. Codex planeja os lances das pretas; Jev escolhe o link correspondente.</p>
 <p class="status">${status}</p><div class="layout"><div>${renderBoard(game)}</div><div class="panel">
 <h2>Lances</h2><ol>${renderHistory(game)}</ol>
-<h2>Lances legais das pretas</h2><div class="moves">${renderMoves(game, blackMoves)}</div>
+<h2>${game.isGameOver() ? "Resultado" : "Lances legais das pretas"}</h2><div class="moves">${game.isGameOver() ? "Partida encerrada" : renderMoves(game, blackMoves)}</div>
 </div></div></main></body></html>`;
   return { status: 200, html };
 }

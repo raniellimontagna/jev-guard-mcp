@@ -177,7 +177,7 @@ npm run chess:demo
 
 The script loads the TypeSafe key from macOS Keychain, serves an ephemeral HTTPS chess board on loopback, and maps `https://chess-demo.example` to that fixture only inside its isolated Playwright driver. The normal MCP public-host policy is unchanged. `chess.js` validates all moves. The bot opens with `f3`, Codex's demonstration plan is `...e5`, the bot plays `g4`, and Codex plans `...Qh4#`.
 
-Jev chooses the matching link among legal Black moves. For each choice, the terminal shows the exact source, label, destination and confidence; type `aprovar` only after reviewing it. A wrong choice, low confidence, missing approval or token expiry stops the game. The script checks `verified_done` and saves a screenshot under the ignored `artifacts/` directory. This tests browser action selection and approval, not chess-playing strength or an unrestricted Chess.com board.
+Jev chooses the matching link among legal Black moves. For each choice, the terminal shows the exact source, label, destination and confidence; type `aprovar` only after reviewing it. A wrong choice, low confidence, missing approval or token expiry stops the game. The script verifies the exact final URL and visible checkmate text, then saves a screenshot under the ignored `artifacts/` directory. This tests browser action selection and approval, not chess-playing strength or an unrestricted Chess.com board.
 
 A public smoke test is available:
 
