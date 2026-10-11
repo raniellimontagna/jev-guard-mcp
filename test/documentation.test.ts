@@ -74,8 +74,9 @@ test("public repository includes an MIT license and secret-free pinned CI", asyn
 
   assert.match(license, /MIT License/);
   assert.match(license, /Copyright \(c\) 2026 Ranielli Montagna/);
-  assert.match(workflow, /actions\/checkout@11d5960a326750d5838078e36cf38b85af677262/);
-  assert.match(workflow, /actions\/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020/);
+  // Pinned to a full commit SHA; the exact SHA changes whenever the action is updated.
+  assert.match(workflow, /actions\/checkout@[0-9a-f]{40}\b/);
+  assert.match(workflow, /actions\/setup-node@[0-9a-f]{40}\b/);
   assert.match(workflow, /node-version: 22/);
   assert.match(workflow, /npm ci --ignore-scripts/);
   assert.match(workflow, /npx playwright install --with-deps chrome/);
