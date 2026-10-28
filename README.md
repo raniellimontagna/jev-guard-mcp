@@ -127,7 +127,7 @@ This mode supports native URL-encoded HTML POST forms without submitter override
 Requirements: Node.js 22+, Google Chrome and a TypeSafe API key.
 
 ```bash
-git clone git@github.com/raniellimontagna/jev-guard-mcp.git
+git clone https://github.com/raniellimontagna/jev-guard-mcp.git
 cd jev-guard-mcp
 npm ci --ignore-scripts
 npm test
@@ -141,14 +141,22 @@ The server reads `TYPESAFE_API_KEY` from the process environment. On macOS, `scr
 ./scripts/run-from-keychain.sh
 ```
 
-Candidate Codex configuration, after replacing the command with the absolute path of your clone:
+Candidate MCP client configuration, after replacing the command with the absolute path of your clone.
+
+Codex (`~/.codex/config.toml`):
 
 ```toml
 [mcp_servers.jev_guard]
 command = "/absolute/path/to/jev-guard-mcp/scripts/run-from-keychain.sh"
 ```
 
-Registering the server is deliberately separate from cloning it. Review the security boundary first and restart Codex after changing MCP configuration.
+Claude Code:
+
+```bash
+claude mcp add jev_guard -- /absolute/path/to/jev-guard-mcp/scripts/run-from-keychain.sh
+```
+
+Registering the server is deliberately separate from cloning it. Review the security boundary first and restart Codex or Claude Code after changing MCP configuration.
 
 ## MCP tools
 
